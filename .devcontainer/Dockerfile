@@ -2,4 +2,9 @@ FROM python:3.10.13-slim
 
 ENV PYTHONUNBUFFERED=1
 
-RUN pip install "poetry==1.6"
+WORKDIR /poetry-build
+COPY poetry.lock* pyproject.toml* /poetry-build/
+
+RUN pip install "poetry==1.6" \
+    && poetry config virtualenvs.create false \
+    && poetry install --no-interaction --no-ansi
