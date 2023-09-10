@@ -20,14 +20,14 @@
 
 	// Configure tool-specific properties.
 	"customizations": {
-			"vscode": {
-					"extensions": [
-							"ms-python.python",
-							"ms-python.vscode-pylance",
-							"chunsen.bracket-select",
-							"ms-azuretools.vscode-docker"
-					]
-			}
+		"vscode": {
+			"extensions": [
+				"ms-python.python",
+				"ms-python.vscode-pylance",
+				"chunsen.bracket-select",
+				"ms-azuretools.vscode-docker"
+			]
+		}
 	}
 
 	// Uncomment to connect as an existing user other than the container default. More info: https://aka.ms/dev-containers-non-root.
