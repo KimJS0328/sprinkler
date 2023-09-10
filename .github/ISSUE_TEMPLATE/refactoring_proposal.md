@@ -1,5 +1,5 @@
 ---
-name: 🛠️ Refactoring Proposal
+name: 🛠️ Refactoring proposal
 about: Propose refactoring point of source code.
 title: 'Refactor: '
 labels: 'refactor'
