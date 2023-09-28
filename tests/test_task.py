@@ -6,6 +6,7 @@ from sprinkler.context import Context
 
 def test_task_1():
     task = Task(
+        'test_task_1',
         {'input0': 'str', 'input1': 'int'},
         'str',
         {'input0': 'sprinkler', 'input1': 3},
@@ -18,8 +19,9 @@ def test_task_1():
     assert output == 'sprinklersprinklersprinkler'
 
 
-def test_value_error():
+def test_input_name_error():
     task = Task(
+        'test_input_name_error',
         {'input0': 'str', 'input1': 'int'},
         'str',
         {'input2': 'sprinkler', 'input1': 3},
@@ -27,12 +29,14 @@ def test_value_error():
     )
 
     context = Context()
-    with pytest.raises(ValueError):
+    with pytest.raises(NameError) as err:
         task.execute(context)
+    assert 'The input' in err.value.args[0]
 
 
-def test_type_error():
+def test_input_type_error():
     task = Task(
+        'test_input_type_error',
         {'input0': 'str', 'input1': 'str'},
         'str',
         {'input0': 'sprinkler', 'input1': 3},
@@ -40,5 +44,21 @@ def test_type_error():
     )
 
     context = Context()
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError) as err:
         task.execute(context)
+    assert 'The input' in err.value.args[0]
+
+
+def test_output_type_error():
+    task = Task(
+        'test_output_type_error',
+        {'input0': 'str', 'input1': 'int'},
+        'int',
+        {'input0': 'sprinkler', 'input1': 3},
+        lambda input0, input1: input0 * input1
+    )
+
+    context = Context()
+    with pytest.raises(TypeError) as err:
+        task.execute(context)
+    assert 'The output' in err.value.args[0]
