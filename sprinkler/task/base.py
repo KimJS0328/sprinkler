@@ -6,12 +6,11 @@ import inspect
 from pydantic import create_model, BaseModel, ValidationError
 
 from sprinkler.context import Context
+from sprinkler import config
 
 
 class Task:
     """The unit of operation in pipeline."""
-
-    DEFAULT_OUTPUT_KEY = 'return'
     
     def __init__(
         self,
@@ -100,7 +99,7 @@ class Task:
                 for key, field_info in output_config.model_fields.items()
             }
         else:
-            self.output_config = {self.DEFAULT_OUTPUT_KEY: {'type': output_config}}
+            self.output_config = {config.DEFAULT_OUTPUT_KEY: {'type': output_config}}
         
         self._output_model = create_model(
             f'TaskOutput_{self.task_id}',
@@ -112,16 +111,14 @@ class Task:
 
 
     def execute(self, context: Context) -> None:
-        """Execute the task given context.
+        """Execute the task with given context.
 
         Args:
             context: The context of the pipeline.
-
         """
         context.set_local_context(self.context)
         
         kwargs = self._parse_input(context)
-
         output = self.operation(**kwargs)
         output = self._parse_output(output)
 
@@ -134,13 +131,13 @@ class Task:
 
         remaining_keys = self.input_config.keys() - kwargs.keys()
         prev_output = context.get_values({
-            self.DEFAULT_OUTPUT_KEY: self.DEFAULT_OUTPUT_KEY
+            config.DEFAULT_OUTPUT_KEY: config.DEFAULT_OUTPUT_KEY
         })
 
         if len(remaining_keys) == 1:
             remaining_key = list(remaining_keys)[0]
             value = (
-                prev_output.get(self.DEFAULT_OUTPUT_KEY)
+                prev_output.get(config.DEFAULT_OUTPUT_KEY)
                 or self.input_config[remaining_key].get('default')
             )
 
@@ -156,7 +153,7 @@ class Task:
     
     def _parse_output(self, output: Any) -> Any:
         if not isinstance(output, dict):
-            output = {self.DEFAULT_OUTPUT_KEY: output}
+            output = {config.DEFAULT_OUTPUT_KEY: output}
 
         try:
             self._output_model.model_validate(output)
