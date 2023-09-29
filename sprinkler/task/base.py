@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 from typing import Callable, Any
 from pydoc import locate
 
 from sprinkler.context import Context
+
 
 class Task:
 
