@@ -8,10 +8,12 @@ class Context:
         self._context = {'local': {}, 'global': {}}
 
     def retrieve(self, query: dict[str, Any]) -> dict[str, Any]:
-        return {
-            name: self._context['local'].get(name) or self._context['global'].get(name)
-            for name in query
-        }
+        result = {}
+        for key in query:
+            value = self._context['local'].get(key) or self._context['global'].get(key)
+            if value is not None:
+                result[key] = value
+        return result
     
     def set(self, context: dict[str, Any], scope: str) -> None:
         self._context[scope].update(context)
