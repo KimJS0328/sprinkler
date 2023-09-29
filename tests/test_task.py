@@ -16,7 +16,7 @@ def test_task_base():
     )
     context = Context()
     task.execute(context)
-    output = context.retrieve({Task.DEFAULT_OUTPUT_KEY: ''})[Task.DEFAULT_OUTPUT_KEY]
+    output = context.get_values({Task.DEFAULT_OUTPUT_KEY: Task.DEFAULT_OUTPUT_KEY})[Task.DEFAULT_OUTPUT_KEY]
 
     assert output == 'sprinklersprinklersprinkler'
 
@@ -32,7 +32,7 @@ def test_task_with_default():
     )
     context = Context()
     task.execute(context)
-    output = context.retrieve({Task.DEFAULT_OUTPUT_KEY: ''})[Task.DEFAULT_OUTPUT_KEY]
+    output = context.get_values({Task.DEFAULT_OUTPUT_KEY: Task.DEFAULT_OUTPUT_KEY})[Task.DEFAULT_OUTPUT_KEY]
 
     assert output == 'sprinklersprinklersprinkler'
 
@@ -48,7 +48,7 @@ def test_task_with_no_type_hint():
     )
     context = Context()
     task.execute(context)
-    output = context.retrieve({Task.DEFAULT_OUTPUT_KEY: ''})[Task.DEFAULT_OUTPUT_KEY]
+    output = context.get_values({Task.DEFAULT_OUTPUT_KEY: Task.DEFAULT_OUTPUT_KEY})[Task.DEFAULT_OUTPUT_KEY]
 
     assert output == 'sprinklersprinklersprinkler'
 
@@ -65,7 +65,7 @@ def test_task_with_input_config():
     )
     context = Context()
     task.execute(context)
-    output = context.retrieve({Task.DEFAULT_OUTPUT_KEY: ''})[Task.DEFAULT_OUTPUT_KEY]
+    output = context.get_values({Task.DEFAULT_OUTPUT_KEY: Task.DEFAULT_OUTPUT_KEY})[Task.DEFAULT_OUTPUT_KEY]
 
     assert output == 'sprinklersprinklersprinkler'
 
@@ -82,7 +82,7 @@ def test_task_with_output_config():
     )
     context = Context()
     task.execute(context)
-    output = context.retrieve({Task.DEFAULT_OUTPUT_KEY: ''})[Task.DEFAULT_OUTPUT_KEY]
+    output = context.get_values({Task.DEFAULT_OUTPUT_KEY: Task.DEFAULT_OUTPUT_KEY})[Task.DEFAULT_OUTPUT_KEY]
 
     assert output == 'sprinklersprinklersprinkler'
 

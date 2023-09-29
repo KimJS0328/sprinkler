@@ -101,21 +101,19 @@ class Task:
         )
 
 
-
     def execute(self, context: Context) -> None:
-        context.set(self.context, 'local')
+        context.replace_local_context(self.context)
         
         args = self._parse_input(context)
 
         output = self.operation(**args)
         output = self._parse_output(output)
 
-        context.delete_scope('local')
-        context.set(output, 'local')
+        context.replace_output_context(output)
 
     
     def _parse_input(self, context: Context) -> dict[str, Any]:
-        args = context.retrieve(self.input_query)
+        args = context.get_values(self.input_query)
 
         try:
             self.input_model.model_validate(args)
