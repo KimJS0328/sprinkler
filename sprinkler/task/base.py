@@ -118,22 +118,22 @@ class Task:
             context: The context of the pipeline.
 
         """
-        context.set(self.context, 'local')
+        context.set_local_context(self.context)
         
         kwargs = self._parse_input(context)
 
         output = self.operation(**kwargs)
         output = self._parse_output(output)
 
-        context.delete_scope('local')
-        context.set(output, 'local')
+        context.replace_output_context(output)
+        context.clear_local_context()
 
     
     def _parse_input(self, context: Context) -> dict[str, Any]:
-        kwargs = context.retrieve(self._input_query)
+        kwargs = context.get_values(self._input_query)
 
         remaining_keys = self.input_config.keys() - kwargs.keys()
-        prev_output = context.retrieve({
+        prev_output = context.get_values({
             self.DEFAULT_OUTPUT_KEY: self.DEFAULT_OUTPUT_KEY
         })
 
