@@ -118,7 +118,7 @@ class Task:
             context: The context of the pipeline.
 
         """
-        context.replace_local_context(self.context)
+        context.set_local_context(self.context)
         
         kwargs = self._parse_input(context)
 
@@ -126,6 +126,7 @@ class Task:
         output = self._parse_output(output)
 
         context.replace_output_context(output)
+        context.clear_local_context()
 
     
     def _parse_input(self, context: Context) -> dict[str, Any]:

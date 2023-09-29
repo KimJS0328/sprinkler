@@ -55,16 +55,17 @@ class Context:
         return result
     
 
-    def replace_local_context(self, context: dict[str, Any]) -> None:
-        """Replace with new local values
-        
-        gurantees that previous values is removed
+    def set_local_context(self, context: dict[str, Any]) -> None:
+        """Set local context (before task begins)
 
         Args:
-            context: dictionary with {source}: {value}
+            context: dictionary with {source}: {value} 
         """
+        self.local_context.update(context)
+
+    def clear_local_context(self) -> None:
+        """Remove all values in local context (after task finished)"""
         self.local_context.clear()
-        self.local_context.update(context)   
     
     def add_global_context(self, context: dict[str, Any]) -> None:
         """Add some values to global context
