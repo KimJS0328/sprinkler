@@ -111,7 +111,6 @@ class Task:
         )
 
 
-
     def execute(self, context: Context) -> None:
         """Execute the task given context.
 
@@ -131,14 +130,28 @@ class Task:
 
     
     def _parse_input(self, context: Context) -> dict[str, Any]:
-        args = context.retrieve(self._input_query)
+        kwargs = context.retrieve(self._input_query)
+
+        remaining_keys = self.input_config.keys() - kwargs.keys()
+        prev_output = context.retrieve({
+            self.DEFAULT_OUTPUT_KEY: self.DEFAULT_OUTPUT_KEY
+        })
+
+        if len(remaining_keys) == 1:
+            remaining_key = list(remaining_keys)[0]
+            value = (
+                prev_output.get(self.DEFAULT_OUTPUT_KEY)
+                or self.input_config[remaining_key].get('default')
+            )
+
+            if value is not None:
+                kwargs[remaining_key] = value
 
         try:
-            self._input_model.model_validate(args)
+            self._input_model.model_validate(kwargs)
+            return kwargs
         except ValidationError as e:
             raise Exception(f'Task {self.task_id} input: {e}')
-        
-        return args
     
     
     def _parse_output(self, output: Any) -> Any:
