@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from sprinkler import config
+
 
 class Context:
     """Context for task and pipline(process)
@@ -96,6 +98,15 @@ class Context:
         """
         self.output_context.clear()
         self.output_context.update(output)
+
+    def get_output(self) -> Any:
+        """Retrive output of current context
+        
+        """
+        if config.DEFAULT_OUTPUT_KEY in self.output_context:
+            return self.output_context[config.DEFAULT_OUTPUT_KEY]
+        else:
+            return self.output_context
 
     def __str__(self) -> str:
         """Get all values from context
