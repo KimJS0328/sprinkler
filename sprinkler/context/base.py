@@ -41,7 +41,7 @@ class Context:
             src_parts = src.split(sep='.', maxsplit=2)
             value = None
 
-            if src_parts == 2:
+            if src_parts == 2: 
                 task_id, arg = src_parts
                 if task_id in self.history_context:
                     value = self.history_context[task_id].get(arg) 
@@ -57,7 +57,7 @@ class Context:
         return result
     
 
-    def set_local_context(self, context: dict[str, Any]) -> None:
+    def set_local(self, context: dict[str, Any]) -> None:
         """Set local context (before task begins)
 
         Args:
@@ -65,11 +65,11 @@ class Context:
         """
         self.local_context.update(context)
 
-    def clear_local_context(self) -> None:
+    def clear_local(self) -> None:
         """Remove all values in local context (after task finished)"""
         self.local_context.clear()
     
-    def add_global_context(self, context: dict[str, Any]) -> None:
+    def add_globalt(self, context: dict[str, Any]) -> None:
         """Add some values to global context
         
         Args:
@@ -77,7 +77,7 @@ class Context:
         """
         self.global_context.update(context)
 
-    def add_history_context(self, output: dict[str, Any], task_id: str) -> None:
+    def add_history(self, output: dict[str, Any], task_id: str) -> None:
         """Record specific tasks's output to history context
         
         Args:
@@ -88,7 +88,7 @@ class Context:
             raise Exception(f'{task_id} is already recorded in history context.')
         self.history_context.update({task_id: output})
 
-    def replace_output_context(self, output: dict[str, Any]) -> None:
+    def replace_output(self, output: dict[str, Any]) -> None:
         """Replace with tasks's output
         
         gurantees that previous output values is removed
@@ -119,4 +119,4 @@ class Context:
         return (f'Local Context: {self.local_context}\n'
                 + f'Output Context: {self.output_context}\n'
                 + f'Global Context: {self.global_context}\n'
-                + f'History Context: {self.history_context}\n')
+                + f'History Context: {self.history_context}')

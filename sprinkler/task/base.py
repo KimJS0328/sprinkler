@@ -28,7 +28,6 @@ class Task:
             context: An optional local context for this task. It is used only in this task.
             input_config: An optional extra config for the input of the operation.
             output_config: An optional extra config for the output of the operation.
-        
         """
         
         if not isinstance(task_id, str):
@@ -116,14 +115,14 @@ class Task:
         Args:
             context: The context of the pipeline.
         """
-        context.set_local_context(self.context)
+        context.set_local(self.context)
         
         kwargs = self._parse_input(context)
         output = self.operation(**kwargs)
         output = self._parse_output(output)
 
-        context.replace_output_context(output)
-        context.clear_local_context()
+        context.replace_output(output)
+        context.clear_local()
 
     
     def _parse_input(self, context: Context) -> dict[str, Any]:
