@@ -3,6 +3,7 @@ from pydantic import ValidationError
 
 from sprinkler.task import Task
 from sprinkler.context import Context
+from sprinkler import config
 
 
 def test_task_base():
@@ -16,7 +17,7 @@ def test_task_base():
     )
     context = Context()
     task.execute(context)
-    output = context.get_values({Task.DEFAULT_OUTPUT_KEY: Task.DEFAULT_OUTPUT_KEY})[Task.DEFAULT_OUTPUT_KEY]
+    output = context.get_values({config.DEFAULT_OUTPUT_KEY: config.DEFAULT_OUTPUT_KEY})[config.DEFAULT_OUTPUT_KEY]
 
     assert output == 'sprinklersprinklersprinkler'
 
@@ -28,11 +29,11 @@ def test_parse_default_output():
     task = Task(
         'test_parse_default_output',
         operation,
-        {Task.DEFAULT_OUTPUT_KEY: 'sprinkler', 'b': 3}
+        {config.DEFAULT_OUTPUT_KEY: 'sprinkler', 'b': 3}
     )
     context = Context()
     task.execute(context)
-    output = context.get_values({Task.DEFAULT_OUTPUT_KEY: Task.DEFAULT_OUTPUT_KEY})[Task.DEFAULT_OUTPUT_KEY]
+    output = context.get_values({config.DEFAULT_OUTPUT_KEY: config.DEFAULT_OUTPUT_KEY})[config.DEFAULT_OUTPUT_KEY]
 
     assert output == 'sprinklersprinklersprinkler'
 
@@ -48,7 +49,7 @@ def test_task_with_default():
     )
     context = Context()
     task.execute(context)
-    output = context.get_values({Task.DEFAULT_OUTPUT_KEY: Task.DEFAULT_OUTPUT_KEY})[Task.DEFAULT_OUTPUT_KEY]
+    output = context.get_values({config.DEFAULT_OUTPUT_KEY: config.DEFAULT_OUTPUT_KEY})[config.DEFAULT_OUTPUT_KEY]
 
     assert output == 'sprinklersprinklersprinkler'
 
@@ -64,7 +65,7 @@ def test_task_with_no_type_hint():
     )
     context = Context()
     task.execute(context)
-    output = context.get_values({Task.DEFAULT_OUTPUT_KEY: Task.DEFAULT_OUTPUT_KEY})[Task.DEFAULT_OUTPUT_KEY]
+    output = context.get_values({config.DEFAULT_OUTPUT_KEY: config.DEFAULT_OUTPUT_KEY})[config.DEFAULT_OUTPUT_KEY]
 
     assert output == 'sprinklersprinklersprinkler'
 
@@ -81,7 +82,7 @@ def test_task_with_input_config():
     )
     context = Context()
     task.execute(context)
-    output = context.get_values({Task.DEFAULT_OUTPUT_KEY: Task.DEFAULT_OUTPUT_KEY})[Task.DEFAULT_OUTPUT_KEY]
+    output = context.get_values({config.DEFAULT_OUTPUT_KEY: config.DEFAULT_OUTPUT_KEY})[config.DEFAULT_OUTPUT_KEY]
 
     assert output == 'sprinklersprinklersprinkler'
 
@@ -94,11 +95,11 @@ def test_task_with_output_config():
         'test_task_with_output_config',
         operation,
         {'a': 'sprinkler', 'b': 3},
-        output_config=str
+        output_config={config.DEFAULT_OUTPUT_KEY: {'type': str}}
     )
     context = Context()
     task.execute(context)
-    output = context.get_values({Task.DEFAULT_OUTPUT_KEY: Task.DEFAULT_OUTPUT_KEY})[Task.DEFAULT_OUTPUT_KEY]
+    output = context.get_values({config.DEFAULT_OUTPUT_KEY: config.DEFAULT_OUTPUT_KEY})[config.DEFAULT_OUTPUT_KEY]
 
     assert output == 'sprinklersprinklersprinkler'
 

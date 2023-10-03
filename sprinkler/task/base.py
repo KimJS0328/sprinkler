@@ -98,7 +98,7 @@ class Task:
             }
         else:
             self.output_config = {config.DEFAULT_OUTPUT_KEY: {'type': output_config}}
-        
+
         self._output_model = create_model(
             f'TaskOutput_{self.id}',
             **{
@@ -155,7 +155,6 @@ class Task:
     
     
     def _parse_output(self, output: Any) -> Any:
-        #if not isinstance(output, dict):
         output = {config.DEFAULT_OUTPUT_KEY: output}
 
         try:
