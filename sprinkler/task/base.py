@@ -42,14 +42,15 @@ class Task:
         self.operation = operation
 
 
-        for key in context:
+        self.context = context or {}
+
+        for key in self.context:
             if not isinstance(key, str):
                 raise TypeError((
                     f'Task {self.id}: '
                     'key of context must be str.'
                 ))
             
-        self.context = context or {}
 
 
         operation_spec = inspect.getfullargspec(operation)
