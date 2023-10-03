@@ -69,7 +69,7 @@ class Context:
         """Remove all values in local context (after task finished)"""
         self.local_context.clear()
     
-    def add_globalt(self, context: dict[str, Any]) -> None:
+    def add_global(self, context: dict[str, Any]) -> None:
         """Add some values to global context
         
         Args:
@@ -77,7 +77,7 @@ class Context:
         """
         self.global_context.update(context)
 
-    def add_history(self, output: dict[str, Any], task_id: str) -> None:
+    def add_history(self, output: Any, task_id: str) -> None:
         """Record specific tasks's output to history context
         
         Args:

@@ -26,7 +26,7 @@ class Pipeline:
         self.tasks_id_set: set = set()
         self.context: Context = Context()
         
-        if context: self.context.add_global_context(context)
+        if context: self.context.add_global(context)
         
 
     def add_task(self, task: Task) -> None:
@@ -56,9 +56,10 @@ class Pipeline:
             final output of pipeline
         """
         context_for_run = copy.deepcopy(self.context)
-        if context: context_for_run.add_global_context(context)
+        if context: context_for_run.add_global(context)
 
         for task in self.tasks:
-            task.execute(context_for_run)
+            output = task.execute(context_for_run)
+            context_for_run.add_history(output, task.task_id)
 
         return context_for_run.get_output()

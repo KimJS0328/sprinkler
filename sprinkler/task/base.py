@@ -109,7 +109,10 @@ class Task:
         )
 
 
-    def execute(self, context: Context) -> None:
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        return self.execute(self, args, kwargs)
+
+    def execute(self, context: Context) -> Any:
         """Execute the task with given context.
 
         Args:
@@ -123,6 +126,8 @@ class Task:
 
         context.replace_output(output)
         context.clear_local()
+
+        return output
 
     
     def _parse_input(self, context: Context) -> dict[str, Any]:
