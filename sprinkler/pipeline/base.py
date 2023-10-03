@@ -5,7 +5,7 @@ import copy
 
 from sprinkler.task import Task
 from sprinkler.context import Context
-from sprinkler import config
+
 
 class Pipeline:
     """The pipeline which flows with tasks
@@ -16,17 +16,24 @@ class Pipeline:
         context: the global context values for pipeline instance
     """
 
-    def __init__(self, context: dict[str, Any] = None) -> None:
+    id: str
+    tasks: list[Task]
+    tasks_id_set: set
+    context: Context
+
+    def __init__(self, id_: str, context: dict[str, Any] = None) -> None:
         """Initializes the pipeline instance with context
 
         Args:
             context: 
         """
-        self.tasks: list[Task] = []
-        self.tasks_id_set: set = set()
-        self.context: Context = Context()
+        self.id = id_
+        self.tasks = []
+        self.tasks_id_set = set()
+        self.context = Context()
         
-        if context: self.context.add_global_context(context)
+        if context:
+            self.context.add_global_context(context)
         
 
     def add_task(self, task: Task) -> None:
@@ -44,7 +51,8 @@ class Pipeline:
         self.tasks.append(task)
         self.tasks_id_set.add(task.task_id)
 
-    def run_sequential(self, context: dict[str, Any] = None) -> Any:
+
+    def run(self, context: dict[str, Any] | Context = None) -> Any:
         """run the pipeline flows
 
         excute the tasks in the pipeline sequentially
@@ -56,9 +64,17 @@ class Pipeline:
             final output of pipeline
         """
         context_for_run = copy.deepcopy(self.context)
-        if context: context_for_run.add_global_context(context)
+
+        if isinstance(context, Context):
+            context_for_run.update(context)
+        elif isinstance(context, dict):
+            context_for_run.add_global_context(context)
 
         for task in self.tasks:
             task.execute(context_for_run)
 
         return context_for_run.get_output()
+
+    
+    def __call__(self, context: dict[str, Any] = None) -> Any:
+        return self.run(context)

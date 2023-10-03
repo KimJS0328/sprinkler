@@ -1,6 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
+from sprinkler import config
 from sprinkler.task import Task
 from sprinkler.context import Context
 
@@ -16,7 +17,7 @@ def test_task_base():
     )
     context = Context()
     task.execute(context)
-    output = context.get_values({Task.DEFAULT_OUTPUT_KEY: Task.DEFAULT_OUTPUT_KEY})[Task.DEFAULT_OUTPUT_KEY]
+    output = context.get_output()
 
     assert output == 'sprinklersprinklersprinkler'
 
@@ -28,11 +29,11 @@ def test_parse_default_output():
     task = Task(
         'test_parse_default_output',
         operation,
-        {Task.DEFAULT_OUTPUT_KEY: 'sprinkler', 'b': 3}
+        {config.DEFAULT_OUTPUT_KEY: 'sprinkler', 'b': 3}
     )
     context = Context()
     task.execute(context)
-    output = context.get_values({Task.DEFAULT_OUTPUT_KEY: Task.DEFAULT_OUTPUT_KEY})[Task.DEFAULT_OUTPUT_KEY]
+    output = context.get_output()
 
     assert output == 'sprinklersprinklersprinkler'
 
@@ -48,7 +49,7 @@ def test_task_with_default():
     )
     context = Context()
     task.execute(context)
-    output = context.get_values({Task.DEFAULT_OUTPUT_KEY: Task.DEFAULT_OUTPUT_KEY})[Task.DEFAULT_OUTPUT_KEY]
+    output = context.get_output()
 
     assert output == 'sprinklersprinklersprinkler'
 
@@ -64,7 +65,7 @@ def test_task_with_no_type_hint():
     )
     context = Context()
     task.execute(context)
-    output = context.get_values({Task.DEFAULT_OUTPUT_KEY: Task.DEFAULT_OUTPUT_KEY})[Task.DEFAULT_OUTPUT_KEY]
+    output = context.get_output()
 
     assert output == 'sprinklersprinklersprinkler'
 
@@ -81,7 +82,7 @@ def test_task_with_input_config():
     )
     context = Context()
     task.execute(context)
-    output = context.get_values({Task.DEFAULT_OUTPUT_KEY: Task.DEFAULT_OUTPUT_KEY})[Task.DEFAULT_OUTPUT_KEY]
+    output = context.get_output()
 
     assert output == 'sprinklersprinklersprinkler'
 
@@ -98,7 +99,7 @@ def test_task_with_output_config():
     )
     context = Context()
     task.execute(context)
-    output = context.get_values({Task.DEFAULT_OUTPUT_KEY: Task.DEFAULT_OUTPUT_KEY})[Task.DEFAULT_OUTPUT_KEY]
+    output = context.get_output()
 
     assert output == 'sprinklersprinklersprinkler'
 

@@ -1,4 +1,3 @@
-
 from sprinkler.task import Task
 from sprinkler.pipeline import Pipeline
 
@@ -19,13 +18,12 @@ def test_pipeline_base():
     task2 = Task(
         'task2',
         operation2,
-        context = {'b': 5},
-        input_config={'a': {'type': int, 'src': 'return'}}
+        context = {'b': 5}
     )
 
-    pipeline = Pipeline()
+    pipeline = Pipeline('test_pipeline_base')
     pipeline.add_task(task1)
     pipeline.add_task(task2)
-    output = pipeline.run_sequential()
+    output = pipeline.run()
 
     assert output == 86

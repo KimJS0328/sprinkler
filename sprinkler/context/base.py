@@ -22,6 +22,7 @@ class Context:
         self.global_context = {} 
         self.history_context = {}
 
+
     def get_values(self, query: dict[str, Any]) -> dict[str, Any]:
         """Retrieve values in context requested by query
 
@@ -55,7 +56,7 @@ class Context:
             if value: result[arg] = value
 
         return result
-    
+
 
     def set_local(self, context: dict[str, Any]) -> None:
         """Set local context (before task begins)
@@ -65,17 +66,20 @@ class Context:
         """
         self.local_context.update(context)
 
+
     def clear_local(self) -> None:
         """Remove all values in local context (after task finished)"""
         self.local_context.clear()
     
-    def add_globalt(self, context: dict[str, Any]) -> None:
+
+    def add_global(self, context: dict[str, Any]) -> None:
         """Add some values to global context
         
         Args:
             context: dictionary with {source}: {value}
         """
         self.global_context.update(context)
+
 
     def add_history(self, output: dict[str, Any], task_id: str) -> None:
         """Record specific tasks's output to history context
@@ -88,7 +92,8 @@ class Context:
             raise Exception(f'{task_id} is already recorded in history context.')
         self.history_context.update({task_id: output})
 
-    def replace_output(self, output: dict[str, Any]) -> None:
+
+    def replace_output(self, output: Any) -> None:
         """Replace with tasks's output
         
         gurantees that previous output values is removed
@@ -99,6 +104,7 @@ class Context:
         self.output_context.clear()
         self.output_context.update(output)
 
+
     def get_output(self) -> Any:
         """Retrive output of current context
         
@@ -107,6 +113,14 @@ class Context:
             return self.output_context[config.DEFAULT_OUTPUT_KEY]
         else:
             return self.output_context
+
+
+    def update(self, context: Context) -> None:
+        self.global_context.update(context.global_context)
+        self.history_context.update(context.history_context)
+        self.output_context = context.output_context
+        self.local_context = context.local_context
+
 
     def __str__(self) -> str:
         """Get all values from context
