@@ -14,7 +14,7 @@ class Task:
     
     def __init__(
         self,
-        task_id: str,
+        id: str,
         operation: Callable,
         context: dict[str, Any] | None = None,
         input_config: dict[str, Any | dict[str, Any]] | None = None,
@@ -23,21 +23,21 @@ class Task:
         """Initialize the task class.
 
         Args:
-            task_id: A task identifier. It should be following the python variable naming rule.
+            id: A task identifier. It should be following the python variable naming rule.
             operation: A callbale object defining the operation of task.
             context: An optional local context for this task. It is used only in this task.
             input_config: An optional extra config for the input of the operation.
             output_config: An optional extra config for the output of the operation.
         """
         
-        if not isinstance(task_id, str):
-            raise TypeError(f'task_id must be str.')
+        if not isinstance(id, str):
+            raise TypeError(f'id must be str.')
         
-        self.task_id = task_id
+        self.id = id
 
 
         if '__call__' not in dir(operation):
-            raise TypeError(f'Task {self.task_id}: operation must be callable.')
+            raise TypeError(f'Task {self.id}: operation must be callable.')
         
         self.operation = operation
 
@@ -45,7 +45,7 @@ class Task:
         for key in context:
             if not isinstance(key, str):
                 raise TypeError((
-                    f'Task {self.task_id}: '
+                    f'Task {self.id}: '
                     'key of context must be str.'
                 ))
             
@@ -82,13 +82,12 @@ class Task:
         
 
         self._input_model = create_model(
-            f'TaskInput_{self.task_id}',
+            f'TaskInput_{self.id}',
             **{
                 name: (config['type'], self.input_config[name].get('default') or ...)
                 for name, config in self.input_config.items()
             }
         )
-
 
         output_config = output_config or operation_spec.annotations.get('return') or Any
 
@@ -101,7 +100,7 @@ class Task:
             self.output_config = {config.DEFAULT_OUTPUT_KEY: {'type': output_config}}
         
         self._output_model = create_model(
-            f'TaskOutput_{self.task_id}',
+            f'TaskOutput_{self.id}',
             **{
                 name: (config['type'], ...)
                 for name, config in self.output_config.items()
@@ -110,7 +109,7 @@ class Task:
 
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        return self.execute(self, args, kwargs)
+        return self.execute(self, *args, **kwargs)
 
     def execute(self, context: Context) -> Any:
         """Execute the task with given context.
@@ -129,7 +128,7 @@ class Task:
 
         return output
 
-    
+
     def _parse_input(self, context: Context) -> dict[str, Any]:
         kwargs = context.get_values(self._input_query)
 
@@ -152,16 +151,16 @@ class Task:
             self._input_model.model_validate(kwargs)
             return kwargs
         except ValidationError as e:
-            raise Exception(f'Task {self.task_id} input: {e}')
+            raise Exception(f'Task {self.id} input: {e}')
     
     
     def _parse_output(self, output: Any) -> Any:
-        if not isinstance(output, dict):
-            output = {config.DEFAULT_OUTPUT_KEY: output}
+        #if not isinstance(output, dict):
+        output = {config.DEFAULT_OUTPUT_KEY: output}
 
         try:
             self._output_model.model_validate(output)
         except ValidationError as e:
-            raise Exception(f'Task {self.task_id} output: {e}')
+            raise Exception(f'Task {self.id} output: {e}')
 
         return output
