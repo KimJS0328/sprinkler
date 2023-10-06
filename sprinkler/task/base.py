@@ -1,19 +1,91 @@
 from __future__ import annotations
 
-from typing import Callable, Any
+from typing import Callable, Tuple, Dict, Any
 import inspect
 
 from pydantic import create_model, BaseModel, ValidationError
 
 from sprinkler import config
 
+def create_input_config_and_query(
+        operation: Callable,
+        user_config: Dict
+    ) -> Tuple[Dict, Dict]:
+    """
+    
+    """
+    operation_spec = inspect.getfullargspec(operation)
+    default_len = len(operation_spec.defaults or [])
+
+    input_config = {} # {argument name}: {meta data of argument ex. type, source, ...} 
+    input_query = {} # {argument name}: {source}
+
+    for i, arg in enumerate(operation_spec.args):
+        # if operation is instance method,
+        # skip the first argument ex. self
+        if i == 0 and inspect.ismethod(operation): continue            
+
+        # configuration of the argument which user gives as input
+        user_config_arg = user_config.get(arg, {})
+
+        # {argument name}: {type}
+        if not isinstance(user_config_arg, dict):
+            user_config_arg = {'type': user_config_arg}
+
+        # create the base of input_config
+        input_config[arg] = {
+            'type': user_config_arg.get('type') or operation_spec.annotations.get(arg) or Any,
+            'src': user_config_arg.get('src') or arg
+        }
+
+        if user_config_arg.get('default'): 
+            input_config[arg]['default'] = user_config_arg['default']
+        elif len(operation_spec.args) - i <= default_len: # when default value is given at paramter
+            input_config[arg]['default'] = (
+                operation_spec.defaults[i - len(operation_spec.args) + default_len]
+            )
+        
+        input_query[arg] = input_config[arg]['src']
+    
+    return input_config, input_query
+
+
+def create_output_config(
+        operation: Callable,
+        user_config: type
+    ) -> Dict:
+    """
+    
+    """
+    annotations = inspect.getfullargspec(operation).annotations
+
+    if user_config is not None:
+        if issubclass(user_config, BaseModel):
+            return {
+                key: {'type': field_info.annotation}
+                for key, field_info in user_config.model_fields.items()
+            }
+        else:
+            return {config.DEFAULT_OUTPUT_KEY: {'type': user_config}}
+    else:
+        # if return type hint is None
+        # user_config becomes None
+        if 'return' in annotations:
+            user_config = annotations['return']
+            if user_config is None:
+                user_config = type(None)
+        else:
+            user_config = Any
+
+        return {config.DEFAULT_OUTPUT_KEY: {'type': user_config}}
+
 
 class Task:
     """The unit of operation in pipeline."""
 
-    id: str
-    input_config: dict
-    _input_query: dict
+    id: str = 'Unnamed Task'
+    input_config: dict = {}
+    _input_query: dict = {}
     _input_model: BaseModel
     _output_model: BaseModel
     
@@ -21,7 +93,7 @@ class Task:
         self,
         id: str,
         operation: Callable,
-        input_config: dict[str, Any | dict[str, Any]] | None = None,
+        input_config: Dict[str, Any | Dict[str, Any]] | None = None,
         output_config: type | None = None,
     ) -> None:
         """Initialize the task class.
@@ -43,40 +115,7 @@ class Task:
         
         self.operation = operation
 
-
-        operation_spec = inspect.getfullargspec(operation)
-        input_config = input_config or {}
-
-        self.input_config = {} # {argument name}: {meta data of argument ex. type, source, ...}
-        self._input_query = {} # {argument name}: {source}
-        
-        default_len = len(operation_spec.defaults or [])
-
-        for i, arg in enumerate(operation_spec.args):
-            # if operation is instance method,
-            # skip the first argument ex. self
-            if i == 0 and inspect.ismethod(operation): continue            
-
-            user_config = input_config.get(arg) or {} # configuration which user gives as input
-
-            # {argument name}: {type}
-            if not isinstance(user_config, dict):
-                user_config = {'type': user_config}
-
-            # create the base of input_config
-            self.input_config[arg] = {
-                'type': user_config.get('type') or operation_spec.annotations.get(arg) or Any,
-                'src': user_config.get('src') or arg
-            }
-
-            if user_config.get('default'): 
-                self.input_config[arg]['default'] = user_config['default']
-            elif len(operation_spec.args) - i <= default_len: # when default value is given at paramter
-                self.input_config[arg]['default'] = (
-                    operation_spec.defaults[i - len(operation_spec.args) + default_len]
-                )
-            
-            self._input_query[arg] = self.input_config[arg]['src']
+        self.input_config, self._input_query = create_input_config_and_query(operation, input_config or {})
         
         # create input pydantic model for validation
         self._input_model = create_model(
@@ -87,25 +126,7 @@ class Task:
             }
         )
 
-        if output_config is not None:
-            if issubclass(output_config, BaseModel):
-                self.output_config = {
-                    key: {'type': field_info.annotation}
-                    for key, field_info in output_config.model_fields.items()
-                }
-            else:
-                self.output_config = {config.DEFAULT_OUTPUT_KEY: {'type': output_config}}
-        else:
-            # if return type hint is None
-            # output_config becomes None
-            if 'return' in operation_spec.annotations:
-                output_config = operation_spec.annotations['return']
-                if output_config is None:
-                    output_config = type(None)
-            else:
-                output_config = Any
-
-            self.output_config = {config.DEFAULT_OUTPUT_KEY: {'type': output_config}}
+        self.output_config = create_output_config(operation, output_config)
 
         # create output pydantic model for validation
         self._output_model = create_model(
