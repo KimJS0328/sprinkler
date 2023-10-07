@@ -40,7 +40,7 @@ class Pipeline:
         
         if task.id in self.tasks_id_set:
             raise Exception(f'Task ID \'{task.id}\' is already exsists')
-
+        
         self.tasks.append(task)
         self.tasks_id_set.add(task.id)
 
@@ -54,10 +54,13 @@ class Pipeline:
             final output of pipeline
         """
         context_for_run = copy.deepcopy(self.context)
+
+        # if context is given for run, 
+        # add to global context in pipeline
         if 'context' in kwargs: 
             context = kwargs.pop('context')
             context_for_run.add_global(context)
-
+        
         # execute the first task with given arguments
         if self.tasks:
             output = self.tasks[0].execute(*args, **kwargs)

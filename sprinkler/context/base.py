@@ -42,28 +42,22 @@ class Context:
         # validation of output type
         output_mapping = False # flag for output mapping to kwargs
 
-        if self.output is None:
+        if (self.output is None) or (not query):
             pass
         elif (all(hasattr(self.output, attr) # output is a mapping object
                 for attr in ('keys', '__getitem__'))):
             output_mapping = True
-        elif (all(hasattr(self.output, attr)
-                for attr in ('__iter__', '__next__')) and # output is a iterable object
+        elif (hasattr(self.output, '__iter__') and # output is a iterable object
               not isinstance(self.output, str)):
             args = self.output
         else: # output is a independent object
             args = (self.output, )
-    
+
 
         for arg, src in query.items():
-            src_parts = src.split(sep='.', maxsplit=2)
-            
             # match argument with history context
-            if src_parts == 2: 
-                task_id, task_src = src_parts
-                if (task_id in self.history_context and 
-                    task_src in self.history_context[task_id]):
-                    kwargs[arg] = self.history_context[task_id][task_src]
+            if src in self.history_context:
+                kwargs[arg] = self.history_context[src]
             else:
                 # match argument with global context
                 if src in self.global_context:
