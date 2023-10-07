@@ -170,3 +170,19 @@ def test_instance_method():
     output = task(5)
 
     assert output == 25
+
+
+def test_with_decorator():
+    from sprinkler.task.decorator import Task
+    @Task(
+        'add', 
+        input_config={'a': int, 'b': int}, 
+        output_config=int
+    )
+    def add(a, b):
+        return a + b
+    
+    task = add
+    output = task(5, 5)
+
+    assert output == 10
