@@ -26,7 +26,7 @@ class Pipeline:
         self.tasks_id_set: set = set()
         self.context: Context = Context()
         
-        if context: self.context.add_global_context(context)
+        if context: self.context.add_global(context)
         
 
     def add_task(self, task: Task) -> None:
@@ -38,27 +38,40 @@ class Pipeline:
         if not isinstance(task, Task):
             raise TypeError('Given task parameter is not Task instance')
         
-        if task.task_id in self.tasks_id_set:
-            raise Exception(f'Task ID \'{task.task_id}\' is already exsists')
-
+        if task.id in self.tasks_id_set:
+            raise Exception(f'Task ID \'{task.id}\' is already exsists')
+        
         self.tasks.append(task)
-        self.tasks_id_set.add(task.task_id)
+        self.tasks_id_set.add(task.id)
 
-    def run_sequential(self, context: dict[str, Any] = None) -> Any:
+
+    def run(self, *args, **kwargs) -> Any:
         """run the pipeline flows
 
         excute the tasks in the pipeline sequentially
-
-        Args:
-            context: global context values used to run this pipeline
 
         Returns:
             final output of pipeline
         """
         context_for_run = copy.deepcopy(self.context)
-        if context: context_for_run.add_global_context(context)
 
-        for task in self.tasks:
-            task.execute(context_for_run)
+        # if context is given for run, 
+        # add to global context in pipeline
+        if 'context' in kwargs: 
+            context = kwargs.pop('context')
+            context_for_run.add_global(context)
+        
+        # run the first task with given arguments
+        if self.tasks:
+            output = self.tasks[0].run(*args, **kwargs)
+            context_for_run.replace_output(output)
+            context_for_run.add_history(output, self.tasks[0].id)
+
+        # run tasks as chain with context
+        for task in self.tasks[1:]:
+            kwargs = context_for_run.get_kwargs(task.get_query())
+            output = task.run(**kwargs)
+            context_for_run.replace_output(output)
+            context_for_run.add_history(output, task.id)
 
         return context_for_run.get_output()
