@@ -10,7 +10,7 @@ from sprinkler import config
 def create_input_config_and_query(
         operation: Callable,
         user_config: Dict
-    ) -> Tuple[Dict, Dict]:
+) -> Tuple[Dict, Dict]:
     """
     
     """
@@ -53,7 +53,7 @@ def create_input_config_and_query(
 def create_output_config(
         operation: Callable,
         user_config: type
-    ) -> Dict:
+) -> Dict:
     """
     
     """
@@ -91,7 +91,7 @@ class Task:
     
     def __init__(
         self,
-        id: str,
+        id_: str,
         operation: Callable,
         input_config: Dict[str, Any | Dict[str, Any]] | None = None,
         output_config: type | None = None,
@@ -105,10 +105,10 @@ class Task:
             output_config: An optional extra config for the output of the operation.
         """
         
-        if not isinstance(id, str):
+        if not isinstance(id_, str):
             raise TypeError(f'id must be str.')
         
-        self.id = id
+        self.id = id_
 
         if '__call__' not in dir(operation):
             raise TypeError(f'Task {self.id}: operation must be callable.')
@@ -139,10 +139,10 @@ class Task:
 
 
     def __call__(self, *args, **kwargs) -> Any:
-        return self.execute(*args, **kwargs)
+        return self.run(*args, **kwargs)
 
-    def execute(self, *args, **kwargs) -> Any:
-        """Execute the task with given context."""
+    def run(self, *args, **kwargs) -> Any:
+        """run the task with given context."""
         kwargs = self._parse_input(args, kwargs)
         output = self.operation(**kwargs)
         output = self._parse_output(output)

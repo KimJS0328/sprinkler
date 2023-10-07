@@ -16,7 +16,7 @@ def test_task_base():
         {'a': str, 'b': int}
     )
 
-    output = task.execute('sprinkler', 3)
+    output = task.run('sprinkler', 3)
 
     assert output == 'sprinklersprinklersprinkler'
 
@@ -45,7 +45,7 @@ def test_task_with_default():
         operation
     )
 
-    output = task.execute(a='sprinkler')
+    output = task.run(a='sprinkler')
 
     assert output == 'sprinklersprinklersprinkler'
 
@@ -60,7 +60,7 @@ def test_task_with_no_type_hint():
         output_config=str
     )
 
-    output = task.execute('sprinkler', 3)
+    output = task.run('sprinkler', 3)
 
     assert output == 'sprinklersprinklersprinkler'
 
@@ -75,7 +75,7 @@ def test_task_with_input_config():
         {'b': int}
     )
 
-    output = task.execute('sprinkler', 3)
+    output = task.run('sprinkler', 3)
 
     assert output == 'sprinklersprinklersprinkler'
 
@@ -90,7 +90,7 @@ def test_task_with_output_config():
         output_config=str
     )
 
-    output = task.execute('sprinkler', 3)
+    output = task.run('sprinkler', 3)
 
     assert output == 'sprinklersprinklersprinkler'
 
@@ -106,7 +106,7 @@ def test_type_error_with_none_input():
     )
 
     with pytest.raises(Exception) as err:
-        output = task.execute(a=None)
+        output = task.run(a=None)
 
     assert 'input' in err.value.args[0]
 
@@ -121,7 +121,7 @@ def test_input_name_error():
     )
 
     with pytest.raises(Exception) as err:
-        output = task.execute('sprinkler', c=3)
+        output = task.run('sprinkler', c=3)
 
     assert 'unexpected' in err.value.args[0]
 
@@ -151,6 +151,22 @@ def test_output_type_error():
     )
 
     with pytest.raises(Exception) as err:
-        output = task.execute('sprinkler', 3)
+        output = task.run('sprinkler', 3)
     
     assert 'output' in err.value.args[0]
+    
+
+def test_instance_method():
+    class Test:
+        def run(self, a: int):
+            return a * a
+
+    t = Test()
+    task = Task(
+        'test_with_instance',
+        t.run
+    )
+
+    output = task(5)
+
+    assert output == 25

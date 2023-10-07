@@ -14,21 +14,19 @@ class Context:
         history_context: context values for recording context for specific task (monitoring)
     """
 
-    output: Any
     global_context: Dict
     history_context: Dict
     
     def __init__(self) -> None:
         """Initializes all contexts to empty dictionary"""
-        self.output = None
         self.global_context = {} 
         self.history_context = {}
 
-    def get_args(self, query: dict[str, Any]) -> Tuple[Tuple, Dict[str, Any]]:
+    def get_kwargs(self, query: dict[str, Any]) -> Tuple[Tuple, Dict[str, Any]]:
         """Retrieve arguments in context requested by query
 
         result doesn't include value which doesn't exist in context
-        priority: history(if task_id is specifed) -> output -> global
+        priority: history(if task_id is specifed) -> global
         
         Args:
             query: key-value pair with {argument_name}: {source}
@@ -36,23 +34,7 @@ class Context:
         Returns:
             Tuple of arguments (tuple) and keyword argument (dictionary)
         """
-        args = ()
         kwargs = {}
-
-        # validation of output type
-        output_mapping = False # flag for output mapping to kwargs
-
-        if (self.output is None) or (not query):
-            pass
-        elif (all(hasattr(self.output, attr) # output is a mapping object
-                for attr in ('keys', '__getitem__'))):
-            output_mapping = True
-        elif (hasattr(self.output, '__iter__') and # output is a iterable object
-              not isinstance(self.output, str)):
-            args = self.output
-        else: # output is a independent object
-            args = (self.output, )
-
 
         for arg, src in query.items():
             # match argument with history context
@@ -63,11 +45,7 @@ class Context:
                 if src in self.global_context:
                     kwargs[arg] = self.global_context[src]
 
-                # match argument with output if mapping
-                if output_mapping and src in self.output.keys():
-                    kwargs[arg] = self.output.__getitem__(src)
-
-        return args, kwargs
+        return kwargs
 
     
     def add_global(self, context: dict[str, Any]) -> None:

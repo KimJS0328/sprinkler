@@ -61,16 +61,16 @@ class Pipeline:
             context = kwargs.pop('context')
             context_for_run.add_global(context)
         
-        # execute the first task with given arguments
+        # run the first task with given arguments
         if self.tasks:
-            output = self.tasks[0].execute(*args, **kwargs)
+            output = self.tasks[0].run(*args, **kwargs)
             context_for_run.replace_output(output)
             context_for_run.add_history(output, self.tasks[0].id)
 
-        # execute tasks as chain with context
+        # run tasks as chain with context
         for task in self.tasks[1:]:
-            args, kwargs = context_for_run.get_args(task.get_query())
-            output = task.execute(*args, **kwargs)
+            kwargs = context_for_run.get_kwargs(task.get_query())
+            output = task.run(**kwargs)
             context_for_run.replace_output(output)
             context_for_run.add_history(output, task.id)
 
