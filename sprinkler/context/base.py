@@ -52,7 +52,8 @@ class Context:
               not isinstance(self.output, str)):
             args = self.output
         else: # output is a independent object
-            arg = (self.output)
+            args = (self.output, )
+    
 
         for arg, src in query.items():
             src_parts = src.split(sep='.', maxsplit=2)
@@ -113,5 +114,5 @@ class Context:
             dictionary representation of all contexts
         """
         return (f'Global Context: {self.global_context}\n'
-                + f'History Context: {self.history_context}'
+                + f'History Context: {self.history_context}\n'
                 + f'Output: {self.output}\n')

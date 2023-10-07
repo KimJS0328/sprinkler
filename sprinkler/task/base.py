@@ -138,10 +138,10 @@ class Task:
         )
 
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    def __call__(self, *args, **kwargs) -> Any:
         return self.execute(*args, **kwargs)
 
-    def execute(self, *args: Any, **kwargs: Any) -> Any:
+    def execute(self, *args, **kwargs) -> Any:
         """Execute the task with given context."""
         kwargs = self._parse_input(args, kwargs)
         output = self.operation(**kwargs)
@@ -151,6 +151,11 @@ class Task:
 
 
     def _parse_input(self, args: tuple, kwargs: dict) -> dict[str, Any]:
+        """Validate input arguemnts
+
+        Returns:
+            keyword arguments of validated arguments
+        """
         kwargs = inspect.getcallargs(self.operation, *args, **kwargs)
 
         try:
@@ -160,6 +165,11 @@ class Task:
     
     
     def _parse_output(self, output: Any) -> Any:
+        """Validate output
+
+        Returns:
+            validated output
+        """
         is_pydantic = True
         
         # if output is not pydantic model,
@@ -177,3 +187,6 @@ class Task:
             return output
         else:
             return output[config.DEFAULT_OUTPUT_KEY]
+        
+    def get_query(self):
+        return self._input_query
