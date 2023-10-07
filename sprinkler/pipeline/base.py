@@ -5,7 +5,6 @@ import copy
 
 from sprinkler.task import Task
 from sprinkler.context import Context
-from sprinkler import config
 
 
 class Pipeline:
@@ -17,17 +16,19 @@ class Pipeline:
         context: the global context values for pipeline instance
     """
 
-    def __init__(self, context: dict[str, Any] = None) -> None:
+    def __init__(self, id_: str, context: dict[str, Any] = None) -> None:
         """Initializes the pipeline instance with context
 
         Args:
             context: 
         """
+        self.id = id_
         self.tasks: list[Task] = []
         self.tasks_id_set: set = set()
         self.context: Context = Context()
         
-        if context: self.context.add_global(context)
+        if context:
+            self.context.add_global(context)
         
 
     def add_task(self, task: Task) -> None:
@@ -44,7 +45,7 @@ class Pipeline:
         
         self.tasks.append(task)
         self.tasks_id_set.add(task.id)
-
+    
 
     def run(self, *args, **kwargs) -> Any:
         """run the pipeline flows
@@ -57,41 +58,71 @@ class Pipeline:
         return self.run_with_context({}, *args, **kwargs)
     
 
-    def run_with_context(self, context, *args, **kwargs) -> Any:
+    def run_with_context(self, context_, *args, **kwargs) -> Any:
         context_for_run = copy.deepcopy(self.context)
 
         # add to global context in pipeline
-        if context: 
-            context_for_run.add_global(context)
-        
-        # run the first task with given arguments
+        context_for_run.add_global(context_)
+
         if self.tasks:
-            output = self.tasks[0].run(*args, **kwargs)
+            kwargs = self._bind_first_task_arguments(
+                self.tasks[0], context_for_run, args, kwargs
+            )
+            output = self.tasks[0].run(**kwargs)
             context_for_run.add_history(output, self.tasks[0].id)
 
         # run tasks as chain with context
         for task in self.tasks[1:]:
-            kwargs = self._bind_arguments(context_for_run, task, output)
+            kwargs = self._bind_task_arguments(task, context_for_run, output)
             output = task.run(**kwargs)
             context_for_run.add_history(output, task.id)
 
         return output
     
 
-    def _bind_arguments(
+    def _bind_first_task_arguments(
         self,
-        context: Context,
         task: Task,
-        previous_output: Any
+        context: Context,
+        args: tuple,
+        kwargs: dict
     ) -> dict[str, Any]:
+
         query = task.get_query()
-        kwargs = context.get_kwargs(query)
+        kwargs.update(context.get_kwargs(query))
 
         remaining_args = [arg for arg, _ in query if arg not in kwargs]
 
         if not remaining_args:
             return kwargs
 
+        if len(remaining_args) == len(args):
+            for arg, val in zip(remaining_args, args):
+                kwargs[arg] = val
+        
+        else:
+            raise Exception((
+                f'Task {task.id}: '
+                f'input arguments {remaining_args} cannot find the value.'
+            ))
+
+        return kwargs
+
+         
+
+    def _bind_task_arguments(
+        self,
+        task: Task,
+        context: Context,
+        previous_output: Any
+    ) -> dict[str, Any]:
+        
+        query = task.get_query()
+        kwargs = context.get_kwargs(query)
+        remaining_args = [arg for arg, _ in query if arg not in kwargs]
+
+        if not remaining_args:
+            return kwargs
 
         if len(remaining_args) == 1:
             kwargs[remaining_args[0]] = previous_output
