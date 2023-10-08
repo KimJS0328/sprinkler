@@ -99,18 +99,11 @@ class Pipeline:
         if not remaining_args:
             return kwargs
 
-        if len(remaining_args) == len(args):
+        if len(remaining_args) >= len(args):
             for arg, val in zip(remaining_args, args):
                 kwargs[arg] = val
-        
-        else:
-            raise Exception((
-                f'Task {task.id}: '
-                f'input arguments {remaining_args} cannot find the value.'
-            ))
 
         return kwargs
-
          
 
     def _bind_task_arguments(
@@ -130,15 +123,9 @@ class Pipeline:
         if len(remaining_args) == 1:
             kwargs[remaining_args[0]] = previous_output
         
-        elif (
-            all(
-                hasattr(previous_output, attr) 
-                for attr in ('keys', '__getitem__')
-            )
-            and all(
-                arg in previous_output
-                for arg in remaining_args
-            )
+        elif all(
+            hasattr(previous_output, attr) 
+            for attr in ('keys', '__getitem__')
         ):
             for arg in remaining_args:
                 kwargs[arg] = previous_output[arg]
@@ -148,16 +135,10 @@ class Pipeline:
                 hasattr(previous_output, attr) 
                 for attr in ('__iter__', '__len__')
             )
-            and len(previous_output) == len(remaining_args)
+            and len(remaining_args) >= len(previous_output)
         ):
-            for i, arg in enumerate(remaining_args):
-                kwargs[arg] = previous_output[i]
-        
-        else:
-            raise Exception((
-                f'Task {task.id}: '
-                f'input arguments {remaining_args} cannot find the value.'
-            ))
+            for arg, val in zip(remaining_args, previous_output):
+                kwargs[arg] = val
         
         return kwargs
 

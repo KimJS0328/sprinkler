@@ -54,6 +54,33 @@ def test_pipeline_with_args():
     assert output == 270
 
 
+def test_pipeline_with_default_args():
+    def operation1(a, b = 6):
+        return (a * 3, b * 3)
+
+    def operation2(a: int, b: int) -> int:
+        return a * b
+
+    task1 = Task(
+        'task1', 
+        operation1, 
+        input_config={'a': int, 'b': int},
+        output_config=tuple
+    )
+
+    task2 = Task(
+        'task2',
+        operation2
+    )
+
+    p = Pipeline('pipeline')
+    p.add_task(task1)
+    p.add_task(task2)
+    output = p.run(5)
+
+    assert output == 270
+
+
 def test_pipeline_with_history():
     def operation1(a, b):
         return a * b

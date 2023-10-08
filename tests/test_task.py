@@ -148,7 +148,7 @@ def test_input_name_error():
     with pytest.raises(Exception) as err:
         output = task.run('sprinkler', c=3)
 
-    assert 'missing' in err.value.args[0]
+    assert 'unexpected' in err.value.args[0]
 
 
 def test_input_type_error():
