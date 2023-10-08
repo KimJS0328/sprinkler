@@ -60,12 +60,12 @@ class Group:
             input_ = (
                 inputs.get(pipeline.id) 
                 or inputs.get(config.DEFAULT_GROUP_INPUT_KEY) 
-                or {}
+                or None
             )
 
             results[pipeline.id] = pipeline.run_with_context(
                 copy.deepcopy(context_for_run),
-                input_
+                **{config.OUTPUT_KEY: input_}
             )
         
         return results
