@@ -5,6 +5,7 @@ import copy
 
 from sprinkler.pipeline.base import Pipeline
 from sprinkler.context import Context
+from sprinkler import config
 
 
 class Group:
@@ -34,16 +35,16 @@ class Group:
         self.members.append(pipeline)
 
 
-    def run(self, arguments: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    def run(self, **inputs) -> dict[str, Any]:
         """
         """
-        return self.run_with_context({}, arguments)
+        return self.run_with_context({}, inputs)
 
 
     def run_with_context(
         self, 
         context_: dict[str, Any] | Context,
-        arguments: dict[str, dict[str, Any]]
+        **inputs
     ) -> dict[str, Any]:
         
         context_for_run = copy.deepcopy(self.context)
@@ -56,11 +57,15 @@ class Group:
         results = {}
         
         for pipeline in self.members:
-            kwargs = arguments.get(pipeline.id) or {}
+            input_ = (
+                inputs.get(pipeline.id) 
+                or inputs.get(config.DEFAULT_GROUP_INPUT_KEY) 
+                or {}
+            )
 
             results[pipeline.id] = pipeline.run_with_context(
                 copy.deepcopy(context_for_run),
-                **kwargs
+                input_
             )
         
         return results

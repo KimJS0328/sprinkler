@@ -19,14 +19,11 @@ def test_group_with_context():
     group.add_pipeline(pipeline1)
     group.add_pipeline(pipeline2)
 
-    result = group.run_with_context({'repeat': 3}, {
-        'pipeline1': {
-            'string': 'sprinkler'
-        },
-        'pipeline2': {
-            'array': [1,2,3]
-        }
-    })
+    result = group.run_with_context(
+        {'repeat': 3},
+        pipeline1='sprinkler',
+        pipeline2=[1,2,3]
+    )
 
     assert result == {
         'pipeline1': 'sprinklersprinklersprinkler',
