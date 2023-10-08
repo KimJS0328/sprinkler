@@ -1,58 +1,54 @@
 from __future__ import annotations
 
-from typing import Callable, Any, get_type_hints
-import inspect
+from typing import Callable, Any, OrderedDict, get_type_hints
+from inspect import Signature, Parameter
 
 from pydantic import create_model, BaseModel, ValidationError
 
 from sprinkler import config
 
+
+def _none_if_empty(value: Any) -> Any:
+    return None if value is Parameter.empty else value
+
+
 def _create_input_config_and_query(
-    operation: Callable,
+    parameters: OrderedDict[str, Parameter],
     user_config: dict
 ) -> tuple[dict, dict]:
     """
     
     """
-    operation_spec = inspect.getfullargspec(operation)
-    default_len = len(operation_spec.defaults or [])
 
     input_config = {} # {argument name}: {meta data of argument ex. type, source, ...} 
     input_query = [] # [({argument name}, {source})]
 
-    for i, arg in enumerate(operation_spec.args):
-        # if operation is instance method,
-        # skip the first argument ex. self
-        if i == 0 and inspect.ismethod(operation):
-            continue            
+    for param in parameters.values():
 
-        # configuration of the argument which user gives as input
-        user_arg_config = user_config.get(arg, {})
+        param_config = user_config.get(param.name, {})
 
-        # {argument name}: {type}
-        if not isinstance(user_arg_config, dict):
-            user_arg_config = {'type': user_arg_config}
+        if not isinstance(param_config, dict):
+            param_config = {'type': param_config}
 
         # create the base of input_config
-        input_config[arg] = {
-            'type': user_arg_config.get('type') or operation_spec.annotations.get(arg) or Any,
-            'src': user_arg_config.get('src') or arg
+        input_config[param.name] = {
+            'type': param_config.get('type') or _none_if_empty(param.annotation) or Any,
+            'src': param_config.get('src') or param.name,
         }
 
-        if user_arg_config.get('default'): 
-            input_config[arg]['default'] = user_arg_config['default']
-        elif len(operation_spec.args) - i <= default_len: # when default value is given at parameter
-            input_config[arg]['default'] = (
-                operation_spec.defaults[i - len(operation_spec.args) + default_len]
-            )
-        
-        input_query.append((arg, input_config[arg]['src']))
-    
+        default = param_config.get('default') or _none_if_empty(param.default)
+
+        if default is not None:
+            input_config[param.name]['default'] = default
+
+        input_query.append((param.name, input_config[param.name]['src']))
+
     return input_config, input_query
 
 
+
 def _create_output_config(
-    operation: Callable,
+    operation: Any,
     user_config: Any
 ) -> dict:
     """
@@ -75,7 +71,6 @@ def _create_output_config(
         }
     }
 
-
 class Task:
     """The unit of operation in pipeline."""
 
@@ -85,6 +80,7 @@ class Task:
     _input_model: BaseModel
     _output_model: BaseModel
     
+
     def __init__(
         self,
         id_: str,
@@ -112,8 +108,10 @@ class Task:
         
         self.operation = operation
 
+        self.operation_signature = Signature.from_callable(operation)
+
         self.input_config, self._input_query = _create_input_config_and_query(
-            operation, 
+            self.operation_signature.parameters, 
             input_config or {}
         )
         
@@ -157,7 +155,7 @@ class Task:
         Returns:
             keyword arguments of validated arguments
         """
-        kwargs = inspect.getcallargs(self.operation, *args, **kwargs)
+        kwargs = self.operation_signature.bind(*args, **kwargs).arguments
 
         try:
             return self._input_model.model_validate(kwargs).model_dump()
@@ -177,8 +175,8 @@ class Task:
         try:
             return (self._output_model
                 .model_validate(output)
-                .model_dump()[config.DEFAULT_OUTPUT_KEY]
-            )
+                .model_dump()[config.DEFAULT_OUTPUT_KEY])
+        
         except ValidationError as e:
             raise Exception(f'Task {self.id} output: {e}')
 

@@ -1,13 +1,15 @@
-from __future__ import annotations
 
-from typing import Any, List
+class A:
+    def a(self, b: int) -> None:
+        print()
 
-from pydantic import BaseModel
+from inspect import Signature
 
+sig = Signature.from_callable(A().a)
 
-class Model(BaseModel):
-    a: List[int]
-    b: Any
+print(bool(sig.parameters['b'].annotation))
+print(sig.parameters['b'].default)
+print(sig.return_annotation)
 
-
-print(Model(a=('1', 2, 3), b='ok'))
+from typing import get_type_hints
+print(get_type_hints(A().a))
