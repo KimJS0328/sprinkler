@@ -99,9 +99,8 @@ class Pipeline:
         if not remaining_args:
             return kwargs
 
-        if len(remaining_args) >= len(args):
-            for arg, val in zip(remaining_args, args):
-                kwargs[arg] = val
+        for arg, val in zip(remaining_args, args):
+            kwargs[arg] = val
 
         return kwargs
          
@@ -125,17 +124,15 @@ class Pipeline:
         
         elif all(
             hasattr(previous_output, attr) 
-            for attr in ('keys', '__getitem__')
+            for attr in ('keys', '__getitem__', '__contains__')
         ):
             for arg in remaining_args:
-                kwargs[arg] = previous_output[arg]
+                if arg in previous_output:
+                    kwargs[arg] = previous_output[arg]
 
-        elif (
-            all(
-                hasattr(previous_output, attr) 
-                for attr in ('__iter__', '__len__')
-            )
-            and len(remaining_args) >= len(previous_output)
+        elif all(
+            hasattr(previous_output, attr) 
+            for attr in ('__iter__', '__len__')
         ):
             for arg, val in zip(remaining_args, previous_output):
                 kwargs[arg] = val
