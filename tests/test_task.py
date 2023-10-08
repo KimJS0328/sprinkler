@@ -1,19 +1,17 @@
+from typing import List, Dict
+
 import pytest
-from pydantic import ValidationError
 
 from sprinkler.task import Task
-from sprinkler.context import Context
-from sprinkler import config
 
 
-def test_task_base():
-    def operation(a, b) -> str:
+def test_task():
+    def operation(a: str, b: int) -> str:
         return a * b
 
     task = Task(
-        'test_task_base',
-        operation,
-        {'a': str, 'b': int}
+        'task1',
+        operation
     )
 
     output = task.run('sprinkler', 3)
@@ -21,43 +19,69 @@ def test_task_base():
     assert output == 'sprinklersprinklersprinkler'
 
 
-def test_parse_default_output():
-    def operation(b, a: str = 'hello') -> str:
+def test_task_with_list_type():
+    def filter_odd(arr: List[int]) -> List[int]:
+        return [i for i in arr if i % 2 == 1]
+
+    task = Task(
+        'task1',
+        filter_odd
+    )
+
+    output = task.run([1,2,3,4,5])
+
+    assert output == [1,3,5]
+
+
+def test_task_pydantic_coersion():
+    def map_value(a: Dict[str, str]) -> Dict[str, int]:
+        return {key: val for key, val in a.items()}
+
+    task = Task(
+        'task1',
+        map_value
+    )
+
+    output = task.run({'a': '1'})
+
+    assert output == {'a': 1}
+
+
+def test_task_with_kwargs():
+    def operation(b: int, a: str) -> str:
         return a * b
 
     task = Task(
-        'test_parse_default_output',
-        operation,
-        {'b': int}
+        'task1',
+        operation
     )
 
-    output = task(a='sprinkler', b=3)
+    output = task(b=3, a='sprinkler')
 
     assert output == 'sprinklersprinklersprinkler'
 
 
-def test_task_with_default():
+def test_task_with_default_arguments():
     def operation(a: str, b: int = 3) -> str:
         return a * b
 
     task = Task(
-        'test_task_with_default',
+        'task1',
         operation
     )
 
-    output = task.run(a='sprinkler')
+    output = task.run('sprinkler')
 
     assert output == 'sprinklersprinklersprinkler'
 
 
 def test_task_with_no_type_hint():
-    def operation(a: str, b):
+    def operation(a, b):
         return a * b
 
     task = Task(
-        'test_task_with_no_type_hint',
-        operation,
-        output_config=str
+        'task1',
+        operation
     )
 
     output = task.run('sprinkler', 3)
@@ -70,9 +94,9 @@ def test_task_with_input_config():
         return a * b
 
     task = Task(
-        'test_task_with_input_config',
+        'task1',
         operation,
-        {'b': int}
+        input_config={'b': int}
     )
 
     output = task.run('sprinkler', 3)
@@ -95,14 +119,14 @@ def test_task_with_output_config():
     assert output == 'sprinklersprinklersprinkler'
 
 
-def test_type_error_with_none_input():
+def test_task_type_error_with_none_input():
     def operation(a: str, b: int = 3) -> str:
         return a * b
 
     task = Task(
-        'test_type_error_with_none_input',
+        'task1',
         operation,
-        {'a': str}
+        input_config={'a': str}
     )
 
     with pytest.raises(Exception) as err:
@@ -116,7 +140,7 @@ def test_input_name_error():
         return a * b
 
     task = Task(
-        'test_input_name_error',
+        'task1',
         operation
     )
 
@@ -131,7 +155,7 @@ def test_input_type_error():
         return a * b
 
     task = Task(
-        'test_input_type_error',
+        'task1',
         operation
     )
 
@@ -146,7 +170,7 @@ def test_output_type_error():
         return a * b
 
     task = Task(
-        'test_output_type_error',
+        'task1',
         operation
     )
 
@@ -170,3 +194,4 @@ def test_instance_method():
     output = task(5)
 
     assert output == 25
+

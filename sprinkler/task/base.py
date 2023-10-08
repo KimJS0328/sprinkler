@@ -27,20 +27,20 @@ def _create_input_config_and_query(
             continue            
 
         # configuration of the argument which user gives as input
-        user_config_arg = user_config.get(arg, {})
+        user_arg_config = user_config.get(arg, {})
 
         # {argument name}: {type}
-        if not isinstance(user_config_arg, dict):
-            user_config_arg = {'type': user_config_arg}
+        if not isinstance(user_arg_config, dict):
+            user_arg_config = {'type': user_arg_config}
 
         # create the base of input_config
         input_config[arg] = {
-            'type': user_config_arg.get('type') or operation_spec.annotations.get(arg) or Any,
-            'src': user_config_arg.get('src') or arg
+            'type': user_arg_config.get('type') or operation_spec.annotations.get(arg) or Any,
+            'src': user_arg_config.get('src') or arg
         }
 
-        if user_config_arg.get('default'): 
-            input_config[arg]['default'] = user_config_arg['default']
+        if user_arg_config.get('default'): 
+            input_config[arg]['default'] = user_arg_config['default']
         elif len(operation_spec.args) - i <= default_len: # when default value is given at parameter
             input_config[arg]['default'] = (
                 operation_spec.defaults[i - len(operation_spec.args) + default_len]
@@ -58,16 +58,13 @@ def _create_output_config(
     """
     
     """
-    annotations = inspect.getfullargspec(operation).annotations
+    annotations_ = inspect.getfullargspec(operation).annotations
 
-    if isinstance(user_config, dict):
-        output_type = user_config['type']
-
-    elif user_config is not NotGiven:
+    if user_config is not NotGiven:
         output_type = user_config
 
-    elif 'return' in annotations:
-        output_type = annotations['return']
+    elif 'return' in annotations_:
+        output_type = annotations_['return']
 
     else:
         output_type = Any
@@ -99,6 +96,7 @@ class Task:
         self,
         id_: str,
         operation: Callable,
+        *,
         input_config: dict[str, Any | dict[str, Any]] = None,
         output_config: dict[str, Any] | Any = NotGiven,
     ) -> None:
@@ -130,7 +128,7 @@ class Task:
         self._input_model = create_model(
             f'TaskInput_{self.id}',
             **{
-                name: (config['type'], self.input_config[name].get('default') or ...)
+                name: (config['type'], config.get('default') or ...)
                 for name, config in self.input_config.items()
             }
         )

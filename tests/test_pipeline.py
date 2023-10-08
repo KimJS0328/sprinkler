@@ -3,7 +3,7 @@ from sprinkler.task import Task
 from sprinkler.pipeline import Pipeline
 
 
-def test_pipeline_base():
+def test_pipeline():
     def operation1(a: int, b: int) -> int:
         return a ** b
 
@@ -20,7 +20,7 @@ def test_pipeline_base():
         operation2
     )
 
-    p = Pipeline('test_pipeline_base')
+    p = Pipeline('pipeline')
     p.add_task(task1)
     p.add_task(task2)
     output = p.run(3, 2)
@@ -38,8 +38,8 @@ def test_pipeline_with_args():
     task1 = Task(
         'task1', 
         operation1, 
-        {'a': int, 'b': int},
-        tuple
+        input_config={'a': int, 'b': int},
+        output_config=tuple
     )
 
     task2 = Task(
@@ -47,7 +47,7 @@ def test_pipeline_with_args():
         operation2
     )
 
-    p = Pipeline('test_pipeline_with_args')
+    p = Pipeline('pipeline')
     p.add_task(task1)
     p.add_task(task2)
     output = p.run(5, 6)
@@ -79,10 +79,10 @@ def test_pipeline_with_history():
     task3 = Task(
         'task3',
         operation3,
-        {'a': {'src': 'task1'}}
+        input_config={'a': {'src': 'task1'}}
     )
 
-    p = Pipeline('test_pipeline_with_history')
+    p = Pipeline('pipeline')
     p.add_task(task1)
     p.add_task(task2)
     p.add_task(task3)
@@ -92,7 +92,7 @@ def test_pipeline_with_history():
     assert output == 25
 
 
-def test_pipeline_with_context():
+def test_pipeline_with_context1():
     def operation1(a, b):
         return a * b
 
@@ -116,10 +116,10 @@ def test_pipeline_with_context():
     task3 = Task(
         'task3',
         operation3,
-        {'a': {'src': 'task1'}}
+        input_config={'a': {'src': 'task1'}}
     )
 
-    p = Pipeline('test_pipeline_with_context', {'b': 10})
+    p = Pipeline('pipeline', {'b': 10})
     p.add_task(task1)
     p.add_task(task2)
     p.add_task(task3)
@@ -127,3 +127,39 @@ def test_pipeline_with_context():
     output = p.run(2)
 
     assert output == 25
+
+
+def test_pipeline_with_context2():
+    def operation1(a, b):
+        return a * b
+
+    def operation2():
+        pass
+
+    def operation3(a, b):
+        return a + 5 * b
+
+    task1 = Task(
+        'task1',
+        operation1
+    )
+
+    task2 = Task(
+        'task2',
+        operation2
+    )
+
+    task3 = Task(
+        'task3',
+        operation3,
+        input_config={'a': {'src': 'task1'}}
+    )
+
+    p = Pipeline('pipeline', {'b': 10})
+    p.add_task(task1)
+    p.add_task(task2)
+    p.add_task(task3)
+
+    output = p.run(2)
+
+    assert output == 70
