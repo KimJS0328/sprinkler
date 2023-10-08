@@ -1,108 +1,134 @@
 from __future__ import annotations
 
-from typing import Callable, Any
-import inspect
+from typing import Callable, Any, OrderedDict, get_type_hints
+from inspect import Signature, Parameter
 
 from pydantic import create_model, BaseModel, ValidationError
 
-from sprinkler.context import Context
 from sprinkler import config
 
 
+def _none_if_empty(value: Any) -> Any:
+    return None if value is Parameter.empty else value
+
+
+def _create_input_config_and_query(
+    parameters: OrderedDict[str, Parameter],
+    user_config: dict
+) -> tuple[dict, dict]:
+    """
+    
+    """
+
+    input_config = {} # {argument name}: {meta data of argument ex. type, source, ...} 
+    input_query = [] # [({argument name}, {source})]
+
+    for param in parameters.values():
+
+        param_config = user_config.get(param.name, {})
+
+        if not isinstance(param_config, dict):
+            param_config = {'type': param_config}
+
+        # create the base of input_config
+        input_config[param.name] = {
+            'type': param_config.get('type') or _none_if_empty(param.annotation) or Any,
+            'src': param_config.get('src') or param.name,
+        }
+
+        default = param_config.get('default') or _none_if_empty(param.default)
+
+        if default is not None:
+            input_config[param.name]['default'] = default
+
+        input_query.append((param.name, input_config[param.name]['src']))
+
+    return input_config, input_query
+
+
+
+def _create_output_config(
+    operation: Any,
+    user_config: Any
+) -> dict:
+    """
+    
+    """
+    annotations_ = get_type_hints(operation)
+
+    if user_config is not None:
+        output_type = user_config
+
+    elif 'return' in annotations_:
+        output_type = annotations_['return']
+
+    else:
+        output_type = Any
+
+    return {
+        config.DEFAULT_OUTPUT_KEY: {
+            'type': output_type
+        }
+    }
+
 class Task:
     """The unit of operation in pipeline."""
+
+    id: str = 'Unnamed Task'
+    input_config: dict = {}
+    _input_query: list[tuple[str, str]] = {}
+    _input_model: BaseModel
+    _output_model: BaseModel
     
+
     def __init__(
         self,
-        task_id: str,
+        id_: str,
         operation: Callable,
-        context: dict[str, Any] | None = None,
+        *,
         input_config: dict[str, Any | dict[str, Any]] | None = None,
         output_config: dict[str, Any] | Any | None = None,
     ) -> None:
         """Initialize the task class.
 
         Args:
-            task_id: A task identifier. It should be following the python variable naming rule.
+            id: A task identifier. It should be following the python variable naming rule.
             operation: A callbale object defining the operation of task.
-            context: An optional local context for this task. It is used only in this task.
             input_config: An optional extra config for the input of the operation.
             output_config: An optional extra config for the output of the operation.
         """
         
-        if not isinstance(task_id, str):
-            raise TypeError(f'task_id must be str.')
+        if not isinstance(id_, str):
+            raise TypeError(f'id must be str.')
         
-        self.task_id = task_id
-
+        self.id = id_
 
         if '__call__' not in dir(operation):
-            raise TypeError(f'Task {self.task_id}: operation must be callable.')
+            raise TypeError(f'Task {self.id}: operation must be callable.')
         
         self.operation = operation
 
+        self.operation_signature = Signature.from_callable(operation)
 
-        self.context = context or {}
-
-        for key in self.context:
-            if not isinstance(key, str):
-                raise TypeError((
-                    f'Task {self.task_id}: '
-                    'key of context must be str.'
-                ))
-            
-
-
-        operation_spec = inspect.getfullargspec(operation)
-        input_config = input_config or {}
-
-        self.input_config = {}
-        self._input_query = {}
+        self.input_config, self._input_query = _create_input_config_and_query(
+            self.operation_signature.parameters, 
+            input_config or {}
+        )
         
-        default_len = len(operation_spec.defaults or [])
-
-        for i, arg in enumerate(operation_spec.args):
-            user_config = input_config.get(arg) or {}
-
-            if not isinstance(user_config, dict):
-                user_config = {'type': user_config}
-
-            self.input_config[arg] = {
-                'type': user_config.get('type') or operation_spec.annotations.get(arg) or Any,
-                'src': user_config.get('src') or arg
-            }
-
-            if user_config.get('default'):
-                self.input_config[arg]['default'] = user_config['default']
-            elif len(operation_spec.args) - i <= default_len:
-                self.input_config[arg]['default'] = (
-                    operation_spec.defaults[i - len(operation_spec.args) + default_len]
-                )
-            
-            self._input_query[arg] = self.input_config[arg]['src']
-        
-
+        # create input pydantic model for validation
         self._input_model = create_model(
-            f'TaskInput_{self.task_id}',
+            f'TaskInput_{self.id}',
             **{
-                name: (config['type'], self.input_config[name].get('default') or ...)
+                name: (config['type'], config.get('default') or ...)
                 for name, config in self.input_config.items()
             }
         )
 
+        self.output_config = _create_output_config(operation, output_config)
 
-        output_config = output_config or operation_spec.annotations.get('return') or Any
-
-        if issubclass(output_config.__class__, BaseModel):
-            self.output_config = {
-                key: {'type': field_info.annotation}
-                for key, field_info in output_config.model_fields.items()
-            }
-        else:
-            self.output_config = {config.DEFAULT_OUTPUT_KEY: {'type': output_config}}
-        
+        # create output pydantic model for validation
         self._output_model = create_model(
-            f'TaskOutput_{self.task_id}',
+            f'TaskOutput_{self.id}',
             **{
                 name: (config['type'], ...)
                 for name, config in self.output_config.items()
@@ -110,54 +136,50 @@ class Task:
         )
 
 
-    def execute(self, context: Context) -> None:
-        """Execute the task with given context.
+    def __call__(self, *args, **kwargs) -> Any:
+        return self.run(*args, **kwargs)
 
-        Args:
-            context: The context of the pipeline.
-        """
-        context.set_local(self.context)
-        
-        kwargs = self._parse_input(context)
+
+    def run(self, *args, **kwargs) -> Any:
+        """run the task with given context."""
+        kwargs = self._parse_input(args, kwargs)
         output = self.operation(**kwargs)
         output = self._parse_output(output)
 
-        context.replace_output(output)
-        context.clear_local()
+        return output
 
-    
-    def _parse_input(self, context: Context) -> dict[str, Any]:
-        kwargs = context.get_values(self._input_query)
 
-        remaining_keys = self.input_config.keys() - kwargs.keys()
-        prev_output = context.get_values({
-            config.DEFAULT_OUTPUT_KEY: config.DEFAULT_OUTPUT_KEY
-        })
+    def _parse_input(self, args: tuple, kwargs: dict) -> dict[str, Any]:
+        """Validate input arguemnts
 
-        if len(remaining_keys) == 1:
-            remaining_key = list(remaining_keys)[0]
-            value = (
-                prev_output.get(config.DEFAULT_OUTPUT_KEY)
-                or self.input_config[remaining_key].get('default')
-            )
-
-            if value is not None:
-                kwargs[remaining_key] = value
+        Returns:
+            keyword arguments of validated arguments
+        """
+        kwargs = self.operation_signature.bind(*args, **kwargs).arguments
 
         try:
-            self._input_model.model_validate(kwargs)
-            return kwargs
+            return self._input_model.model_validate(kwargs).model_dump()
         except ValidationError as e:
-            raise Exception(f'Task {self.task_id} input: {e}')
+            raise Exception(f'Task {self.id} input: {e}')
     
     
     def _parse_output(self, output: Any) -> Any:
-        if not isinstance(output, dict):
-            output = {config.DEFAULT_OUTPUT_KEY: output}
+        """Validate output
+
+        Returns:
+            validated output
+        """
+
+        output = {config.DEFAULT_OUTPUT_KEY: output}
 
         try:
-            self._output_model.model_validate(output)
+            return (self._output_model
+                .model_validate(output)
+                .model_dump()[config.DEFAULT_OUTPUT_KEY])
+        
         except ValidationError as e:
-            raise Exception(f'Task {self.task_id} output: {e}')
+            raise Exception(f'Task {self.id} output: {e}')
 
-        return output
+
+    def get_query(self) -> list[tuple[str, str]]:
+        return self._input_query

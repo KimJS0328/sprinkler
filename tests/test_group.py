@@ -2,7 +2,7 @@ from sprinkler.task import Task
 from sprinkler.pipeline import Pipeline, Group
 
 
-def test_group_base():
+def test_group_with_context():
     def repeat_string(string: str, repeat: int) -> str:
         return string * repeat
     
@@ -19,7 +19,14 @@ def test_group_base():
     group.add_pipeline(pipeline1)
     group.add_pipeline(pipeline2)
 
-    result = group.run({'string': 'sprinkler', 'array': [1, 2, 3], 'repeat': 3})
+    result = group.run_with_context({'repeat': 3}, {
+        'pipeline1': {
+            'string': 'sprinkler'
+        },
+        'pipeline2': {
+            'array': [1,2,3]
+        }
+    })
 
     assert result == {
         'pipeline1': 'sprinklersprinklersprinkler',

@@ -34,17 +34,33 @@ class Group:
         self.members.append(pipeline)
 
 
-    def run(self, context: dict[str, Any] | Context = None) -> dict[str, Any]:
+    def run(self, arguments: dict[str, dict[str, Any]]) -> dict[str, Any]:
+        """
+        """
+        return self.run_with_context({}, arguments)
+
+
+    def run_with_context(
+        self, 
+        context_: dict[str, Any] | Context,
+        arguments: dict[str, dict[str, Any]]
+    ) -> dict[str, Any]:
+        
         context_for_run = copy.deepcopy(self.context)
 
-        if isinstance(context, Context):
-            context_for_run.update(context)
-        elif isinstance(context, dict):
-            context_for_run.add_global(context)
+        if isinstance(context_, dict):
+            context_for_run.add_global(context_)
+        elif isinstance(context_, Context):
+            context_for_run.update(context_)
 
         results = {}
         
         for pipeline in self.members:
-            results[pipeline.id] = pipeline.run(copy.deepcopy(context_for_run))
+            kwargs = arguments.get(pipeline.id) or {}
+
+            results[pipeline.id] = pipeline.run_with_context(
+                copy.deepcopy(context_for_run),
+                **kwargs
+            )
         
         return results

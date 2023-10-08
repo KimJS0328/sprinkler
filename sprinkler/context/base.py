@@ -2,135 +2,88 @@ from __future__ import annotations
 
 from typing import Any
 
-from sprinkler import config
-
 
 class Context:
     """Context for task and pipline(process)
     
     Attributes:
-        local_context: context values for current task
-        output_context: context values for output of previous tasks
+        output: output of previous tasks
         global_context: context values for being used in entire process
         history_context: context values for recording context for specific task (monitoring)
     """
+
+    global_context: dict
+    history_context: dict
     
     def __init__(self) -> None:
         """Initializes all contexts to empty dictionary"""
-        self.local_context = {}
-        self.output_context = {} 
         self.global_context = {} 
         self.history_context = {}
 
 
-    def get_values(self, query: dict[str, Any]) -> dict[str, Any]:
-        """Retrieve values in context requested by query
+    def get_kwargs(self, query: list[tuple[str, str]]) -> dict[str, Any]:
+        """Retrieve arguments in context requested by query
 
         result doesn't include value which doesn't exist in context
-        priority: history(if task_id is specifed) -> local -> previous output -> global
+        priority: history(if task_id is specifed) -> global
         
         Args:
             query: key-value pair with {argument_name}: {source}
 
         Returns:
-            A dict mapping argument name to the correspoding value in the context
-            {argument_name}: {value}
+            Tuple of arguments (tuple) and keyword argument (dictionary)
         """
-        result = {}
+        kwargs = {}
 
-        for arg, src in query.items():
-            src_parts = src.split(sep='.', maxsplit=2)
-            value = None
-
-            if src_parts == 2: 
-                task_id, arg = src_parts
-                if task_id in self.history_context:
-                    value = self.history_context[task_id].get(arg) 
+        for arg, src in query:
+            # match argument with history context
+            if src in self.history_context:
+                kwargs[arg] = self.history_context[src]
             else:
-                value = (
-                    self.local_context.get(src) 
-                    or self.output_context.get(src) 
-                    or self.global_context.get(src)
-                )
+                # match argument with global context
+                if src in self.global_context:
+                    kwargs[arg] = self.global_context[src]
 
-            if value: result[arg] = value
+        return kwargs
 
-        return result
-
-
-    def set_local(self, context: dict[str, Any]) -> None:
-        """Set local context (before task begins)
-
-        Args:
-            context: dictionary with {source}: {value} 
-        """
-        self.local_context.update(context)
-
-
-    def clear_local(self) -> None:
-        """Remove all values in local context (after task finished)"""
-        self.local_context.clear()
     
-
     def add_global(self, context: dict[str, Any]) -> None:
         """Add some values to global context
         
         Args:
             context: dictionary with {source}: {value}
         """
+        if not isinstance(context, dict):
+            raise TypeError(f'Given context must be dictionary.')
         self.global_context.update(context)
 
 
-    def add_history(self, output: dict[str, Any], task_id: str) -> None:
+    def add_history(self, output: Any, task_id: str) -> None:
         """Record specific tasks's output to history context
         
         Args:
-            output: output of tasks. dictionary with {source}: {value} 
-            task_id: identifier of speicific task
+            output: output of task
+            task_id: identifier of task
         """
         if task_id in self.history_context:
             raise Exception(f'{task_id} is already recorded in history context.')
         self.history_context.update({task_id: output})
 
 
-    def replace_output(self, output: Any) -> None:
-        """Replace with tasks's output
-        
-        gurantees that previous output values is removed
-
-        Args:
-            context: dictionary with {source}: {value} 
-        """
-        self.output_context.clear()
-        self.output_context.update(output)
-
-
-    def get_output(self) -> Any:
-        """Retrive output of current context
-        
-        """
-        if config.DEFAULT_OUTPUT_KEY in self.output_context:
-            return self.output_context[config.DEFAULT_OUTPUT_KEY]
-        else:
-            return self.output_context
-
 
     def update(self, context: Context) -> None:
         self.global_context.update(context.global_context)
         self.history_context.update(context.history_context)
-        self.output_context = context.output_context
-        self.local_context = context.local_context
 
 
     def __str__(self) -> str:
         """Get all values from context
 
-        For debugging
+        For monitoring of current state
 
         Returns:
             dictionary representation of all contexts
         """
-        return (f'Local Context: {self.local_context}\n'
-                + f'Output Context: {self.output_context}\n'
-                + f'Global Context: {self.global_context}\n'
-                + f'History Context: {self.history_context}')
+        return (f'Global Context: {self.global_context}\n'
+                + f'History Context: {self.history_context}\n'
+                + f'Output: {self.output}\n')
