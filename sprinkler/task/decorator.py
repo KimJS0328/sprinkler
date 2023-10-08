@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from sprinkler import task
-from sprinkler.task.base import NotGiven
+
 
 class Task:
     def __init__(
@@ -11,7 +11,7 @@ class Task:
         id_: str,
         *,
         input_config: dict[str, Any | dict[str, Any]] | None = None,
-        output_config: type | None = NotGiven,
+        output_config: type | None = None,
     ) -> None:
         self.id = id_
         self.input_config = input_config

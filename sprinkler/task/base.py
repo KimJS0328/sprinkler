@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Any
+from typing import Callable, Any, get_type_hints
 import inspect
 
 from pydantic import create_model, BaseModel, ValidationError
@@ -58,9 +58,9 @@ def _create_output_config(
     """
     
     """
-    annotations_ = inspect.getfullargspec(operation).annotations
+    annotations_ = get_type_hints(operation)
 
-    if user_config is not NotGiven:
+    if user_config is not None:
         output_type = user_config
 
     elif 'return' in annotations_:
@@ -69,18 +69,11 @@ def _create_output_config(
     else:
         output_type = Any
 
-    if output_type is None:
-        output_type = type(None)
-
     return {
         config.DEFAULT_OUTPUT_KEY: {
             'type': output_type
         }
     }
-
-
-class NotGiven:
-    ...
 
 
 class Task:
@@ -97,8 +90,8 @@ class Task:
         id_: str,
         operation: Callable,
         *,
-        input_config: dict[str, Any | dict[str, Any]] = None,
-        output_config: dict[str, Any] | Any = NotGiven,
+        input_config: dict[str, Any | dict[str, Any]] | None = None,
+        output_config: dict[str, Any] | Any | None = None,
     ) -> None:
         """Initialize the task class.
 

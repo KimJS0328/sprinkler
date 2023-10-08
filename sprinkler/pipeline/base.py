@@ -16,7 +16,7 @@ class Pipeline:
         context: the global context values for pipeline instance
     """
 
-    def __init__(self, id_: str, context: dict[str, Any] = None) -> None:
+    def __init__(self, id_: str, context: dict[str, Any] | None = None) -> None:
         """Initializes the pipeline instance with context
 
         Args:
