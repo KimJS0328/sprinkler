@@ -35,14 +35,14 @@ class Context:
         """
         kwargs = {}
 
-        for arg, src in query:
+        for param, src in query:
             # match argument with history context
             if src in self.history_context:
-                kwargs[arg] = self.history_context[src]
+                kwargs[param] = self.history_context[src]
             else:
                 # match argument with global context
                 if src in self.global_context:
-                    kwargs[arg] = self.global_context[src]
+                    kwargs[param] = self.global_context[src]
 
         return kwargs
 

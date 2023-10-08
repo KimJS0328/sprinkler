@@ -5,6 +5,7 @@ import copy
 
 from sprinkler.task import Task
 from sprinkler.context import Context
+from sprinkler import config
 
 
 class Pipeline:
@@ -90,17 +91,22 @@ class Pipeline:
         args: tuple,
         kwargs: dict
     ) -> dict[str, Any]:
+        
+        if config.OUTPUT_KEY in kwargs:
+            return self._bind_task_arguments(
+                task, context, kwargs[config.OUTPUT_KEY]
+            )
 
         query = task.get_query()
         kwargs.update(context.get_kwargs(query))
 
-        remaining_args = [arg for arg, _ in query if arg not in kwargs]
+        remaining_params = [param for param, _ in query if param not in kwargs]
 
-        if not remaining_args:
+        if not remaining_params:
             return kwargs
 
-        for arg, val in zip(remaining_args, args):
-            kwargs[arg] = val
+        for param, val in zip(remaining_params, args):
+            kwargs[param] = val
 
         return kwargs
          
@@ -111,31 +117,32 @@ class Pipeline:
         context: Context,
         previous_output: Any
     ) -> dict[str, Any]:
-        
+
         query = task.get_query()
         kwargs = context.get_kwargs(query)
-        remaining_args = [arg for arg, _ in query if arg not in kwargs]
+        remaining_params = [param for param, _ in query if param not in kwargs]
 
-        if not remaining_args:
+        if not remaining_params:
             return kwargs
 
-        if len(remaining_args) == 1:
-            kwargs[remaining_args[0]] = previous_output
+        if len(remaining_params) == 1:
+            kwargs[remaining_params[0]] = previous_output
         
         elif all(
             hasattr(previous_output, attr) 
             for attr in ('keys', '__getitem__', '__contains__')
         ):
-            for arg in remaining_args:
-                if arg in previous_output:
-                    kwargs[arg] = previous_output[arg]
+            for param in remaining_params:
+                if param in previous_output:
+                    kwargs[param] = previous_output[param]
 
         elif all(
             hasattr(previous_output, attr) 
             for attr in ('__iter__', '__len__')
         ):
-            for arg, val in zip(remaining_args, previous_output):
-                kwargs[arg] = val
+            for param, val in zip(remaining_params, previous_output):
+                kwargs[param] = val
+
         
         return kwargs
 

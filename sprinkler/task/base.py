@@ -66,7 +66,7 @@ def _create_output_config(
         output_type = Any
 
     return {
-        config.DEFAULT_OUTPUT_KEY: {
+        config.OUTPUT_KEY: {
             'type': output_type
         }
     }
@@ -170,12 +170,12 @@ class Task:
             validated output
         """
 
-        output = {config.DEFAULT_OUTPUT_KEY: output}
+        output = {config.OUTPUT_KEY: output}
 
         try:
             return (self._output_model
                 .model_validate(output)
-                .model_dump()[config.DEFAULT_OUTPUT_KEY])
+                .model_dump()[config.OUTPUT_KEY])
         
         except ValidationError as e:
             raise Exception(f'Task {self.id} output: {e}')
