@@ -5,7 +5,7 @@ import copy
 
 from sprinkler.task import Task
 from sprinkler.context import Context
-from sprinkler import config
+
 
 class Pipeline:
     """The pipeline which flows with tasks
@@ -16,17 +16,19 @@ class Pipeline:
         context: the global context values for pipeline instance
     """
 
-    def __init__(self, context: dict[str, Any] = None) -> None:
+    def __init__(self, id_: str, context: dict[str, Any] | None = None) -> None:
         """Initializes the pipeline instance with context
 
         Args:
             context: 
         """
+        self.id = id_
         self.tasks: list[Task] = []
         self.tasks_id_set: set = set()
         self.context: Context = Context()
         
-        if context: self.context.add_global(context)
+        if context:
+            self.context.add_global(context)
         
 
     def add_task(self, task: Task) -> None:
@@ -43,7 +45,7 @@ class Pipeline:
         
         self.tasks.append(task)
         self.tasks_id_set.add(task.id)
-
+    
 
     def run(self, *args, **kwargs) -> Any:
         """run the pipeline flows
@@ -53,25 +55,106 @@ class Pipeline:
         Returns:
             final output of pipeline
         """
+        return self.run_with_context({}, *args, **kwargs)
+    
+
+    def run_with_context(self, context_, *args, **kwargs) -> Any:
         context_for_run = copy.deepcopy(self.context)
 
-        # if context is given for run, 
         # add to global context in pipeline
-        if 'context' in kwargs: 
-            context = kwargs.pop('context')
-            context_for_run.add_global(context)
-        
-        # run the first task with given arguments
+        context_for_run.add_global(context_)
+
         if self.tasks:
-            output = self.tasks[0].run(*args, **kwargs)
-            context_for_run.replace_output(output)
+            kwargs = self._bind_first_task_arguments(
+                self.tasks[0], context_for_run, args, kwargs
+            )
+            output = self.tasks[0].run(**kwargs)
             context_for_run.add_history(output, self.tasks[0].id)
 
         # run tasks as chain with context
         for task in self.tasks[1:]:
-            kwargs = context_for_run.get_kwargs(task.get_query())
+            kwargs = self._bind_task_arguments(task, context_for_run, output)
             output = task.run(**kwargs)
-            context_for_run.replace_output(output)
             context_for_run.add_history(output, task.id)
 
-        return context_for_run.get_output()
+        return output
+    
+
+    def _bind_first_task_arguments(
+        self,
+        task: Task,
+        context: Context,
+        args: tuple,
+        kwargs: dict
+    ) -> dict[str, Any]:
+
+        query = task.get_query()
+        kwargs.update(context.get_kwargs(query))
+
+        remaining_args = [arg for arg, _ in query if arg not in kwargs]
+
+        if not remaining_args:
+            return kwargs
+
+        if len(remaining_args) == len(args):
+            for arg, val in zip(remaining_args, args):
+                kwargs[arg] = val
+        
+        else:
+            raise Exception((
+                f'Task {task.id}: '
+                f'input arguments {remaining_args} cannot find the value.'
+            ))
+
+        return kwargs
+
+         
+
+    def _bind_task_arguments(
+        self,
+        task: Task,
+        context: Context,
+        previous_output: Any
+    ) -> dict[str, Any]:
+        
+        query = task.get_query()
+        kwargs = context.get_kwargs(query)
+        remaining_args = [arg for arg, _ in query if arg not in kwargs]
+
+        if not remaining_args:
+            return kwargs
+
+        if len(remaining_args) == 1:
+            kwargs[remaining_args[0]] = previous_output
+        
+        elif (
+            all(
+                hasattr(previous_output, attr) 
+                for attr in ('keys', '__getitem__')
+            )
+            and all(
+                arg in previous_output
+                for arg in remaining_args
+            )
+        ):
+            for arg in remaining_args:
+                kwargs[arg] = previous_output[arg]
+
+        elif (
+            all(
+                hasattr(previous_output, attr) 
+                for attr in ('__iter__', '__len__')
+            )
+            and len(previous_output) == len(remaining_args)
+        ):
+            for i, arg in enumerate(remaining_args):
+                kwargs[arg] = previous_output[i]
+        
+        else:
+            raise Exception((
+                f'Task {task.id}: '
+                f'input arguments {remaining_args} cannot find the value.'
+            ))
+        
+        return kwargs
+

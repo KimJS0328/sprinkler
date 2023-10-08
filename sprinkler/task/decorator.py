@@ -4,6 +4,7 @@ from typing import Any
 
 from sprinkler import task
 
+
 class Task:
     def __init__(
         self,

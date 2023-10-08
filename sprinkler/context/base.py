@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from enum import Enum
-
-from typing import Dict, Tuple, Any
+from typing import Any
 
 
 class Context:
@@ -14,15 +12,16 @@ class Context:
         history_context: context values for recording context for specific task (monitoring)
     """
 
-    global_context: Dict
-    history_context: Dict
+    global_context: dict
+    history_context: dict
     
     def __init__(self) -> None:
         """Initializes all contexts to empty dictionary"""
         self.global_context = {} 
         self.history_context = {}
 
-    def get_kwargs(self, query: dict[str, Any]) -> Tuple[Tuple, Dict[str, Any]]:
+
+    def get_kwargs(self, query: list[tuple[str, str]]) -> dict[str, Any]:
         """Retrieve arguments in context requested by query
 
         result doesn't include value which doesn't exist in context
@@ -36,7 +35,7 @@ class Context:
         """
         kwargs = {}
 
-        for arg, src in query.items():
+        for arg, src in query:
             # match argument with history context
             if src in self.history_context:
                 kwargs[arg] = self.history_context[src]
@@ -58,6 +57,7 @@ class Context:
             raise TypeError(f'Given context must be dictionary.')
         self.global_context.update(context)
 
+
     def add_history(self, output: Any, task_id: str) -> None:
         """Record specific tasks's output to history context
         
@@ -69,13 +69,6 @@ class Context:
             raise Exception(f'{task_id} is already recorded in history context.')
         self.history_context.update({task_id: output})
 
-    def replace_output(self, output: Any) -> None:
-        """Replace with tasks's output"""
-        self.output = output
-
-    def get_output(self) -> Any:
-        """Retrive output of current context"""
-        return self.output
 
     def __str__(self) -> str:
         """Get all values from context
