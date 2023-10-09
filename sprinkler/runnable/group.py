@@ -12,8 +12,9 @@ class Group(Runnable):
     """The group of parallel running `Runnable`"""
 
     id: str
-    context: Context
     members: list[Runnable]
+    member_id_set: set[str]
+    context: Context
 
 
     def __init__(self, id_: str, context: dict[str, Any] = None) -> None:
@@ -23,8 +24,9 @@ class Group(Runnable):
             context: 
         """
         self.id = id_
-        self.context = Context()
         self.members = []
+        self.member_id_set = set()
+        self.context = Context()
 
         if context:
             self.context.add_global(context)
@@ -32,13 +34,20 @@ class Group(Runnable):
 
     def add(self, runnable: Runnable):
         """Add new `Runnable` instance to this group"""
+        if not isinstance(runnable, Runnable):
+            raise TypeError('Given task parameter is not `Runnable` instance')
+        
+        if runnable.id in self.member_id_set:
+            raise Exception(f'`Runnable` \'{runnable.id}\' is already exsists')
+        
         self.members.append(runnable)
+        self.member_id_set.add(runnable.id)
 
 
     def run(self, **inputs) -> dict[str, Any]:
         """
         """
-        return self.run_with_context({}, inputs)
+        return self.run_with_context({}, **inputs)
 
 
     def run_with_context(

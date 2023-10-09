@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from collections import OrderedDict
 
 
 class Context:
@@ -21,7 +22,7 @@ class Context:
         self.history_context = {}
 
 
-    def get_kwargs(self, query: list[tuple[str, str]]) -> dict[str, Any]:
+    def get_kwargs(self, query: OrderedDict[str, str]) -> dict[str, Any]:
         """Retrieve arguments in context requested by query
 
         result doesn't include value which doesn't exist in context
@@ -35,7 +36,7 @@ class Context:
         """
         kwargs = {}
 
-        for param, src in query:
+        for param, src in query.items():
             # match argument with history context
             if src in self.history_context:
                 kwargs[param] = self.history_context[src]

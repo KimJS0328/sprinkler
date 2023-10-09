@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from typing import Callable, Any, OrderedDict, get_type_hints
+from typing import Callable, Any, get_type_hints
 from inspect import Signature, Parameter
+from collections import OrderedDict
 
 from pydantic import create_model, BaseModel, ValidationError
 
 from sprinkler import config
 from sprinkler.runnable.base import Runnable
+from sprinkler.context.base import Context
 
 
 def _none_if_empty(value: Any) -> Any:
@@ -22,7 +24,7 @@ def _create_input_config_and_query(
     """
 
     input_config = {} # {argument name}: {meta data of argument ex. type, source, ...} 
-    input_query = [] # [({argument name}, {source})]
+    input_query = OrderedDict() # {argument name}: {source}
 
     for param in parameters.values():
 
@@ -34,7 +36,7 @@ def _create_input_config_and_query(
         # create the base of input_config
         input_config[param.name] = {
             'type': param_config.get('type') or _none_if_empty(param.annotation) or Any,
-            'src': param_config.get('src') or param.name,
+            'src': param_config.get('src') or param.name
         }
 
         default = param_config.get('default') or _none_if_empty(param.default)
@@ -42,7 +44,7 @@ def _create_input_config_and_query(
         if default is not None:
             input_config[param.name]['default'] = default
 
-        input_query.append((param.name, input_config[param.name]['src']))
+        input_query[param.name] = input_config[param.name]['src']
 
     return input_config, input_query
 
@@ -142,24 +144,86 @@ class Task(Runnable):
 
 
     def run(self, *args, **kwargs) -> Any:
+        """run the task"""
+        return self.run_with_context({}, *args, **kwargs)
+
+
+    def run_with_context(
+        self,
+        context_: dict[str, Any] | Context,
+        *args,
+        **kwargs
+    ) -> Any:
         """run the task with given context."""
-        kwargs = self._validate_input(args, kwargs)
-        output = self.operation(**kwargs)
+
+        context = context_
+
+        if isinstance(context_, dict):
+            context = Context()
+            context.add_global(context_)
+        
+        input_ = self._validate_input(context, args, kwargs)
+        output = self.operation(**input_)
         output = self._validate_output(output)
 
         return output
 
 
-    def _validate_input(self, args: tuple, kwargs: dict) -> dict[str, Any]:
+    def _bind_input(self, context: Context, args: tuple, kwargs: dict) -> dict[str, Any]:
+        arguments = context.get_kwargs(self._input_query)
+        arguments.update(kwargs)
+        arguments = {arg: val for arg, val in arguments.items() if arg in self._input_query}
+
+        remaining_params = [param for param in self._input_query if param not in arguments]
+        
+        if not remaining_params:
+            return arguments
+
+        if config.OUTPUT_KEY in kwargs:
+            input_ = kwargs[config.OUTPUT_KEY]
+
+            if len(remaining_params) == 1:
+                arguments[remaining_params[0]] = input_
+            
+            elif all(
+                hasattr(input_, attr) 
+                for attr in ('keys', '__getitem__', '__contains__')
+            ):
+                for param in remaining_params:
+                    if param in input_:
+                        arguments[param] = input_[param]
+
+            elif all(
+                hasattr(input_, attr) 
+                for attr in ('__iter__', '__len__')
+            ):
+                for param, val in zip(remaining_params, input_):
+                    arguments[param] = val
+
+        else:
+            arguments.update(kwargs)
+            arguments = {arg: val for arg, val in arguments.items() if arg in self._input_query}
+            input_ = args
+
+            for param, val in zip(remaining_params, input_):
+                arguments[param] = val
+
+        return arguments
+
+
+    def _validate_input(self, context: Context, args: tuple, kwargs: dict) -> dict[str, Any]:
         """Validate input arguemnts
 
         Returns:
             keyword arguments of validated arguments
         """
-        kwargs = self.operation_signature.bind_partial(*args, **kwargs).arguments
+        arguments = self._bind_input(context, args, kwargs)
 
         try:
-            return self._input_model.model_validate(kwargs).model_dump()
+            return (self._input_model
+                .model_validate(arguments)
+                .model_dump())
+        
         except ValidationError as e:
             raise Exception(f'Task {self.id} input: {e}')
     
@@ -180,7 +244,3 @@ class Task(Runnable):
         
         except ValidationError as e:
             raise Exception(f'Task {self.id} output: {e}')
-
-
-    def get_query(self) -> list[tuple[str, str]]:
-        return self._input_query
