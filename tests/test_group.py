@@ -1,5 +1,4 @@
-from sprinkler.task import Task
-from sprinkler.pipeline import Pipeline, Group
+from sprinkler import Task, Pipeline, Group
 
 
 def test_group_with_context():
@@ -10,14 +9,14 @@ def test_group_with_context():
         return array * repeat
     
     pipeline1 = Pipeline('pipeline1')
-    pipeline1.add_task(Task('repeat_string', repeat_string))
+    pipeline1.add(Task('repeat_string', repeat_string))
 
     pipeline2 = Pipeline('pipeline2')
-    pipeline2.add_task(Task('repeat_array', repeat_array))
+    pipeline2.add(Task('repeat_array', repeat_array))
 
     group = Group('group')
-    group.add_pipeline(pipeline1)
-    group.add_pipeline(pipeline2)
+    group.add(pipeline1)
+    group.add(pipeline2)
 
     result = group.run_with_context(
         {'repeat': 3},
@@ -39,14 +38,14 @@ def test_group_with_tuple_input():
         return a + b
     
     pipeline1 = Pipeline('pipeline1')
-    pipeline1.add_task(Task('repeat_string', repeat_string))
+    pipeline1.add(Task('repeat_string', repeat_string))
 
     pipeline2 = Pipeline('pipeline2')
-    pipeline2.add_task(Task('add', add))
+    pipeline2.add(Task('add', add))
 
     group = Group('group')
-    group.add_pipeline(pipeline1)
-    group.add_pipeline(pipeline2)
+    group.add(pipeline1)
+    group.add(pipeline2)
 
     result = group.run_with_context(
         {'repeat': 3},
@@ -68,14 +67,14 @@ def test_group_with_no_input():
         return 'sprinkler'
     
     pipeline1 = Pipeline('pipeline1')
-    pipeline1.add_task(Task('repeat_string', repeat_string))
+    pipeline1.add(Task('repeat_string', repeat_string))
 
     pipeline2 = Pipeline('pipeline2')
-    pipeline2.add_task(Task('return_string', return_string))
+    pipeline2.add(Task('return_string', return_string))
 
     group = Group('group')
-    group.add_pipeline(pipeline1)
-    group.add_pipeline(pipeline2)
+    group.add(pipeline1)
+    group.add(pipeline2)
 
     result = group.run_with_context(
         {'repeat': 3},
@@ -96,14 +95,14 @@ def test_group_with_default_input():
         return array * repeat
     
     pipeline1 = Pipeline('pipeline1')
-    pipeline1.add_task(Task('repeat_string', repeat_string))
+    pipeline1.add(Task('repeat_string', repeat_string))
 
     pipeline2 = Pipeline('pipeline2')
-    pipeline2.add_task(Task('repeat_array', repeat_array))
+    pipeline2.add(Task('repeat_array', repeat_array))
 
     group = Group('group')
-    group.add_pipeline(pipeline1)
-    group.add_pipeline(pipeline2)
+    group.add(pipeline1)
+    group.add(pipeline2)
 
     result = group.run_with_context(
         {'repeat': 3},

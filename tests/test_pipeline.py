@@ -1,5 +1,4 @@
-from sprinkler.task import Task
-from sprinkler.pipeline import Pipeline
+from sprinkler import Task, Pipeline
 
 
 def test_pipeline():
@@ -20,8 +19,8 @@ def test_pipeline():
     )
 
     p = Pipeline('pipeline')
-    p.add_task(task1)
-    p.add_task(task2)
+    p.add(task1)
+    p.add(task2)
     output = p.run(3, 2)
 
     assert output == 729
@@ -47,8 +46,8 @@ def test_pipeline_with_args():
     )
 
     p = Pipeline('pipeline')
-    p.add_task(task1)
-    p.add_task(task2)
+    p.add(task1)
+    p.add(task2)
     output = p.run(5, 6)
 
     assert output == 270
@@ -74,8 +73,8 @@ def test_pipeline_with_default_args():
     )
 
     p = Pipeline('pipeline')
-    p.add_task(task1)
-    p.add_task(task2)
+    p.add(task1)
+    p.add(task2)
     output = p.run(5)
 
     assert output == 270
@@ -101,8 +100,8 @@ def test_pipeline_with_default_args2():
     )
 
     p = Pipeline('pipeline')
-    p.add_task(task1)
-    p.add_task(task2)
+    p.add(task1)
+    p.add(task2)
     output = p.run(5, b = 6)
 
     assert output == 270
@@ -136,9 +135,9 @@ def test_pipeline_with_history():
     )
 
     p = Pipeline('pipeline')
-    p.add_task(task1)
-    p.add_task(task2)
-    p.add_task(task3)
+    p.add(task1)
+    p.add(task2)
+    p.add(task3)
 
     output = p.run(2, 10)
 
@@ -173,9 +172,9 @@ def test_pipeline_with_context1():
     )
 
     p = Pipeline('pipeline', {'b': 10})
-    p.add_task(task1)
-    p.add_task(task2)
-    p.add_task(task3)
+    p.add(task1)
+    p.add(task2)
+    p.add(task3)
 
     output = p.run(2)
 
@@ -209,9 +208,9 @@ def test_pipeline_with_context2():
     )
 
     p = Pipeline('pipeline', {'b': 10})
-    p.add_task(task1)
-    p.add_task(task2)
-    p.add_task(task3)
+    p.add(task1)
+    p.add(task2)
+    p.add(task3)
 
     output = p.run(2)
 

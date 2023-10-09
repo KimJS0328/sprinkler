@@ -3,17 +3,17 @@ from __future__ import annotations
 from typing import Any
 import copy
 
-from sprinkler.pipeline.base import Pipeline
-from sprinkler.context import Context
+from sprinkler.runnable.base import Runnable
+from sprinkler.context.base import Context
 from sprinkler import config
 
 
-class Group:
-    """The group of parallel running pipelines"""
+class Group(Runnable):
+    """The group of parallel running `Runnable`"""
 
     id: str
     context: Context
-    members: list[Pipeline]
+    members: list[Runnable]
 
 
     def __init__(self, id_: str, context: dict[str, Any] = None) -> None:
@@ -30,9 +30,9 @@ class Group:
             self.context.add_global(context)
 
 
-    def add_pipeline(self, pipeline: Pipeline):
-        """Add new pipeline to this group"""
-        self.members.append(pipeline)
+    def add(self, runnable: Runnable):
+        """Add new `Runnable` instance to this group"""
+        self.members.append(runnable)
 
 
     def run(self, **inputs) -> dict[str, Any]:
@@ -56,14 +56,14 @@ class Group:
 
         results = {}
         
-        for pipeline in self.members:
+        for runnable in self.members:
             input_ = (
-                inputs.get(pipeline.id) 
+                inputs.get(runnable.id) 
                 or inputs.get(config.DEFAULT_GROUP_INPUT_KEY) 
                 or None
             )
 
-            results[pipeline.id] = pipeline.run_with_context(
+            results[runnable.id] = runnable.run_with_context(
                 copy.deepcopy(context_for_run),
                 **{config.OUTPUT_KEY: input_}
             )

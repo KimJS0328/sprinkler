@@ -2,8 +2,7 @@ from typing import List, Dict
 
 import pytest
 
-from sprinkler import config
-from sprinkler.task import Task
+from sprinkler import Task
 
 
 def test_task():

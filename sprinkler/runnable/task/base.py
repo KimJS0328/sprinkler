@@ -6,6 +6,7 @@ from inspect import Signature, Parameter
 from pydantic import create_model, BaseModel, ValidationError
 
 from sprinkler import config
+from sprinkler.runnable.base import Runnable
 
 
 def _none_if_empty(value: Any) -> Any:
@@ -71,7 +72,7 @@ def _create_output_config(
         }
     }
 
-class Task:
+class Task(Runnable):
     """The unit of operation in pipeline."""
 
     id: str = 'Unnamed Task'

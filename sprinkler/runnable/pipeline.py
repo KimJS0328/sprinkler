@@ -3,19 +3,25 @@ from __future__ import annotations
 from typing import Any
 import copy
 
-from sprinkler.task import Task
+from sprinkler.runnable.base import Runnable
 from sprinkler.context import Context
 from sprinkler import config
 
 
 class Pipeline:
-    """The pipeline which flows with tasks
+    """The pipeline which executes `Runnable` serially
 
     Attributes:
-        tasks: the list of tasks
-        task_id_set: the set which contains task_id of tasks
+        id: identifer of `Runnable`.
+        members: the list of `Runnable`.
+        member_id_set: the set which contains id of `Runnable`
         context: the global context values for pipeline instance
     """
+
+    id: str
+    members: list[Runnable]
+    member_id_set: set
+    context: Context
 
     def __init__(self, id_: str, context: dict[str, Any] | None = None) -> None:
         """Initializes the pipeline instance with context
@@ -24,28 +30,28 @@ class Pipeline:
             context: 
         """
         self.id = id_
-        self.tasks: list[Task] = []
-        self.tasks_id_set: set = set()
-        self.context: Context = Context()
+        self.members= []
+        self.member_id_set = set()
+        self.context = Context()
         
         if context:
             self.context.add_global(context)
         
 
-    def add_task(self, task: Task) -> None:
-        """Add the task instance to pipeline
+    def add(self, runnable: Runnable) -> None:
+        """Add the `Runnable` instance to pipeline
 
         Args:
-            task: the task instance
+            runnable: the Runnable instance
         """
-        if not isinstance(task, Task):
-            raise TypeError('Given task parameter is not Task instance')
+        if not isinstance(runnable, Runnable):
+            raise TypeError('Given task parameter is not `Runnable` instance')
         
-        if task.id in self.tasks_id_set:
-            raise Exception(f'Task ID \'{task.id}\' is already exsists')
+        if runnable.id in self.member_id_set:
+            raise Exception(f'Task ID \'{runnable.id}\' is already exsists')
         
-        self.tasks.append(task)
-        self.tasks_id_set.add(task.id)
+        self.members.append(runnable)
+        self.member_id_set.add(runnable.id)
     
 
     def run(self, *args, **kwargs) -> Any:
@@ -68,15 +74,15 @@ class Pipeline:
         elif isinstance(context_, Context):
             context_for_run.update(context_)
 
-        if self.tasks:
+        if self.members:
             kwargs = self._bind_first_task_arguments(
-                self.tasks[0], context_for_run, args, kwargs
+                self.members[0], context_for_run, args, kwargs
             )
-            output = self.tasks[0].run(**kwargs)
-            context_for_run.add_history(output, self.tasks[0].id)
+            output = self.members[0].run(**kwargs)
+            context_for_run.add_history(output, self.members[0].id)
 
         # run tasks as chain with context
-        for task in self.tasks[1:]:
+        for task in self.members[1:]:
             kwargs = self._bind_task_arguments(task, context_for_run, output)
             output = task.run(**kwargs)
             context_for_run.add_history(output, task.id)
@@ -86,7 +92,7 @@ class Pipeline:
 
     def _bind_first_task_arguments(
         self,
-        task: Task,
+        task: Runnable,
         context: Context,
         args: tuple,
         kwargs: dict
@@ -113,7 +119,7 @@ class Pipeline:
 
     def _bind_task_arguments(
         self,
-        task: Task,
+        task: Runnable,
         context: Context,
         previous_output: Any
     ) -> dict[str, Any]:
