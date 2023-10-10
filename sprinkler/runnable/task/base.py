@@ -201,8 +201,6 @@ class Task(Runnable):
                     arguments[param] = val
 
         else:
-            arguments.update(kwargs)
-            arguments = {arg: val for arg, val in arguments.items() if arg in self._input_query}
             input_ = args
 
             for param, val in zip(remaining_params, input_):

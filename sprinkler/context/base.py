@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
-from collections import OrderedDict
+from collections import OrderedDict, Mapping
 
 
 class Context:
@@ -38,8 +38,10 @@ class Context:
 
         for param, src in query.items():
             # match argument with history context
-            if src in self.history_context:
-                kwargs[param] = self.history_context[src]
+            result = self._recursive_search(src.split('.'), self.history_context)
+
+            if result is not self.NotFound:
+                kwargs[param] = result
             else:
                 # match argument with global context
                 if src in self.global_context:
@@ -59,22 +61,35 @@ class Context:
         self.global_context.update(context)
 
 
-    def add_history(self, output: Any, task_id: str) -> None:
+    def add_history(self, output: Any, runnable_id: str) -> None:
         """Record specific tasks's output to history context
         
         Args:
             output: output of task
             task_id: identifier of task
         """
-        if task_id in self.history_context:
-            raise Exception(f'{task_id} is already recorded in history context.')
-        self.history_context.update({task_id: output})
-
+        if runnable_id in self.history_context:
+            raise Exception(f'{runnable_id} is already recorded in history context.')
+        self.history_context.update({runnable_id: output})
 
 
     def update(self, context: Context) -> None:
         self.global_context.update(context.global_context)
         self.history_context.update(context.history_context)
+
+
+    class NotFound:
+        ...
+
+
+    def _recursive_search(self, path: list[str], target: Mapping) -> Any:
+        for key in path:
+            try:
+                target = target[key]
+            except:
+                return self.NotFound
+
+        return target
 
 
     def __str__(self) -> str:

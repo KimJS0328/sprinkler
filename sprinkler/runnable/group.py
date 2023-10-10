@@ -44,7 +44,7 @@ class Group(Runnable):
         self.member_id_set.add(runnable.id)
 
 
-    def run(self, **inputs) -> dict[str, Any]:
+    def run(self, *_unused, **inputs) -> dict[str, Any]:
         """
         """
         return self.run_with_context({}, **inputs)
@@ -53,6 +53,7 @@ class Group(Runnable):
     def run_with_context(
         self, 
         context_: dict[str, Any] | Context,
+        *_unused,
         **inputs
     ) -> dict[str, Any]:
         
@@ -62,6 +63,10 @@ class Group(Runnable):
             context_for_run.add_global(context_)
         elif isinstance(context_, Context):
             context_for_run.update(context_)
+
+        if config.OUTPUT_KEY in inputs:
+            inputs[config.DEFAULT_GROUP_INPUT_KEY] = inputs[config.OUTPUT_KEY]
+            del inputs[config.OUTPUT_KEY]
 
         results = {}
         
