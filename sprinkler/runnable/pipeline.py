@@ -88,3 +88,7 @@ class Pipeline(Runnable):
             context_for_run.add_history(output, runnable.id)
 
         return output
+
+
+    def __call__(self, *args, **kwargs) -> Any:
+        return self.run(*args, **kwargs)

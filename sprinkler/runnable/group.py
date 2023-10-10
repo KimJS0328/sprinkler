@@ -83,3 +83,7 @@ class Group(Runnable):
             )
         
         return results
+
+
+    def __call__(self, *_unused, **inputs) -> Any:
+        return self.run(*_unused, **inputs)

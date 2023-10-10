@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Callable, Any, get_type_hints
-from inspect import Signature, Parameter
+from inspect import signature, Parameter
 from collections import OrderedDict
 
 from pydantic import create_model, BaseModel, ValidationError
@@ -16,12 +16,15 @@ def _none_if_empty(value: Any) -> Any:
 
 
 def _create_input_config_and_query(
-    parameters: OrderedDict[str, Parameter],
+    operation: Callable,
     user_config: dict
 ) -> tuple[dict, dict]:
     """
     
     """
+    
+    parameters = signature(operation).parameters
+    annotations_ = get_type_hints(operation)
 
     input_config = {} # {argument name}: {meta data of argument ex. type, source, ...} 
     input_query = OrderedDict() # {argument name}: {source}
@@ -35,7 +38,7 @@ def _create_input_config_and_query(
 
         # create the base of input_config
         input_config[param.name] = {
-            'type': param_config.get('type') or _none_if_empty(param.annotation) or Any,
+            'type': param_config.get('type') or annotations_.get(param.name) or Any,
             'src': param_config.get('src') or param.name
         }
 
@@ -51,7 +54,7 @@ def _create_input_config_and_query(
 
 
 def _create_output_config(
-    operation: Any,
+    operation: Callable,
     user_config: Any
 ) -> dict:
     """
@@ -106,15 +109,13 @@ class Task(Runnable):
         
         self.id = id_
 
-        if '__call__' not in dir(operation):
+        if not callable(operation):
             raise TypeError(f'Task {self.id}: operation must be callable.')
         
         self.operation = operation
 
-        self.operation_signature = Signature.from_callable(operation)
-
         self.input_config, self._input_query = _create_input_config_and_query(
-            self.operation_signature.parameters, 
+            self.operation, 
             input_config or {}
         )
         
@@ -127,7 +128,7 @@ class Task(Runnable):
             }
         )
 
-        self.output_config = _create_output_config(operation, output_config)
+        self.output_config = _create_output_config(self.operation, output_config)
 
         # create output pydantic model for validation
         self._output_model = create_model(
