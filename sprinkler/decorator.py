@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from sprinkler import task
+from sprinkler.runnable import task
 
 
 class Task:

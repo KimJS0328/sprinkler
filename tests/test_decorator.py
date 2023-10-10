@@ -1,7 +1,8 @@
 from typing import List
 
-from sprinkler.task.decorator import Task
-from sprinkler.pipeline import Pipeline
+from sprinkler import Pipeline
+from sprinkler.decorator import Task
+
 
 def test_task_decorator():
     @Task(
@@ -28,7 +29,7 @@ def test_task_decorator_with_pipeline():
         return [i*2 for i in arr]
     
     pipeline = Pipeline('pipeline')
-    pipeline.add_task(filter_odd)
-    pipeline.add_task(map_twice)
+    pipeline.add(filter_odd)
+    pipeline.add(map_twice)
 
     assert [2,6,10] == pipeline.run([1,2,3,4,5])

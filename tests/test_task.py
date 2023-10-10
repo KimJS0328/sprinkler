@@ -2,7 +2,7 @@ from typing import List, Dict
 
 import pytest
 
-from sprinkler.task import Task
+from sprinkler import Task
 
 
 def test_task():
@@ -147,7 +147,7 @@ def test_input_name_error():
     with pytest.raises(Exception) as err:
         output = task.run('sprinkler', c=3)
 
-    assert 'missing' in err.value.args[0]
+    assert 'input' in err.value.args[0]
 
 
 def test_input_type_error():

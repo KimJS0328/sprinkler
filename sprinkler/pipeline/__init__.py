@@ -1,1 +1,0 @@
-from sprinkler.pipeline.base import Pipeline
