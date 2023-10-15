@@ -90,5 +90,18 @@ class Pipeline(Runnable):
         return output
 
 
+    async def arun(self, *args, **kwargs) -> Any:
+        return self.arun_with_context({}, *args, **kwargs)
+
+
+    async def arun_with_context(
+        self,
+        context_: dict[str, Any] | Context,
+        *args,
+        **kwargs
+    ) -> Any:
+        return self.run_with_context(context_, *args, **kwargs)
+
+
     def __call__(self, *args, **kwargs) -> Any:
         return self.run(*args, **kwargs)

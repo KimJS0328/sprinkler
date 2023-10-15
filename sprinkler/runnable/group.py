@@ -85,5 +85,18 @@ class Group(Runnable):
         return results
 
 
+    async def arun(self, *args, **kwargs) -> Any:
+        return self.arun_with_context({}, **kwargs)
+
+
+    async def arun_with_context(
+        self,
+        context_: dict[str, Any] | Context,
+        *args,
+        **kwargs
+    ) -> Any:
+        return self.run_with_context(context_, **kwargs)
+
+
     def __call__(self, *_unused, **inputs) -> Any:
         return self.run(*_unused, **inputs)

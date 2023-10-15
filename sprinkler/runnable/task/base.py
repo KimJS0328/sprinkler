@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from typing import Callable, Any, get_type_hints
-from inspect import signature, Parameter
+from typing import Callable, Any, Coroutine, get_type_hints
+from inspect import signature, Parameter, iscoroutinefunction
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
+import asyncio
 
 from pydantic import create_model, BaseModel, ValidationError
 
@@ -52,7 +54,6 @@ def _create_input_config_and_query(
     return input_config, input_query
 
 
-
 def _create_output_config(
     operation: Callable,
     user_config: Any
@@ -77,12 +78,13 @@ def _create_output_config(
         }
     }
 
+
 class Task(Runnable):
     """The unit of operation in pipeline."""
 
     id: str = 'Unnamed Task'
     input_config: dict = {}
-    _input_query: list[tuple[str, str]] = {}
+    _input_query: OrderedDict[str, str] = OrderedDict()
     _input_model: BaseModel
     _output_model: BaseModel
     
@@ -145,7 +147,7 @@ class Task(Runnable):
 
 
     def run(self, *args, **kwargs) -> Any:
-        """run the task"""
+        """Run the task synchronously."""
         return self.run_with_context({}, *args, **kwargs)
 
 
@@ -155,7 +157,7 @@ class Task(Runnable):
         *args,
         **kwargs
     ) -> Any:
-        """run the task with given context."""
+        """Run the task with given context synchronously."""
 
         context = context_
 
@@ -164,10 +166,59 @@ class Task(Runnable):
             context.add_global(context_)
         
         input_ = self._validate_input(context, args, kwargs)
-        output = self.operation(**input_)
+        output = self._run_operation(input_)
         output = self._validate_output(output)
 
         return output
+    
+
+    def _run_operation(self, input_: dict) -> Any:
+        if iscoroutinefunction(self.operation):
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    Task._run_coroutine_in_another_thread,
+                    self.operation,
+                    input_
+                )
+                return future.result()
+        else:
+            return self.operation(**input_)
+
+
+    @staticmethod
+    def _run_coroutine_in_another_thread(coro, input_) -> Any:
+        return asyncio.run(coro(**input_))
+
+
+    async def arun(self, *args, **kwargs) -> Any:
+        """run the task with given context."""
+        return await self.arun_with_context({}, *args, **kwargs)
+
+
+    async def arun_with_context(
+        self,
+        context_: dict[str, Any] | Context,
+        *args,
+        **kwargs
+    ) -> Any:
+        context = context_
+
+        if isinstance(context_, dict):
+            context = Context()
+            context.add_global(context_)
+        
+        input_ = self._validate_input(context, args, kwargs)
+        output = await self._arun_operation(input_)
+        output = self._validate_output(output)
+
+        return output
+
+
+    async def _arun_operation(self, input_: dict) -> Any:
+        if iscoroutinefunction(self.operation):
+            return await self.operation(**input_)
+        else:
+            return self.operation(**input_)
 
 
     def _bind_input(self, context: Context, args: tuple, kwargs: dict) -> dict[str, Any]:

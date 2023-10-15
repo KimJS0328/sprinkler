@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from typing import Any
-from collections import OrderedDict, Mapping
+from collections import OrderedDict
+from collections.abc import Mapping
 
 
 class Context:
