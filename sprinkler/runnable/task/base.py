@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Any, Coroutine, get_type_hints
+from typing import Callable, Any, Generator, get_type_hints
 from inspect import signature, Parameter, iscoroutinefunction
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
@@ -144,6 +144,26 @@ class Task(Runnable):
 
     def __call__(self, *args, **kwargs) -> Any:
         return self.run(*args, **kwargs)
+    
+
+    def _run_generator(
+        self,
+        context_: dict[str, Any] | Context,
+        args: tuple,
+        kwargs: dict
+    ) -> Generator[dict[str, Any], Any, Any]:
+        
+        context = context_
+
+        if isinstance(context_, dict):
+            context = Context()
+            context.add_global(context_)
+        
+        input_ = self._validate_input(context, args, kwargs)
+        output = yield input_
+        output = self._validate_output(output)
+
+        return output
 
 
     def run(self, *args, **kwargs) -> Any:
@@ -159,20 +179,15 @@ class Task(Runnable):
     ) -> Any:
         """Run the task with given context synchronously."""
 
-        context = context_
-
-        if isinstance(context_, dict):
-            context = Context()
-            context.add_global(context_)
-        
-        input_ = self._validate_input(context, args, kwargs)
-        output = self._run_operation(input_)
-        output = self._validate_output(output)
-
-        return output
+        gen = self._run_generator(context_, args, kwargs)
+        input_ = next(gen)
+        try:
+            gen.send(self._run_operation(input_))
+        except StopIteration as output:
+            return output.value
     
 
-    def _run_operation(self, input_: dict) -> Any:
+    def _run_operation(self, input_: dict[str, Any]) -> Any:
         if iscoroutinefunction(self.operation):
             with ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(
@@ -201,20 +216,16 @@ class Task(Runnable):
         *args,
         **kwargs
     ) -> Any:
-        context = context_
-
-        if isinstance(context_, dict):
-            context = Context()
-            context.add_global(context_)
         
-        input_ = self._validate_input(context, args, kwargs)
-        output = await self._arun_operation(input_)
-        output = self._validate_output(output)
+        gen = self._run_generator(context_, args, kwargs)
+        input_ = next(gen)
+        try: 
+            gen.send(await self._arun_operation(input_))
+        except StopIteration as output:
+            return output.value
 
-        return output
 
-
-    async def _arun_operation(self, input_: dict) -> Any:
+    async def _arun_operation(self, input_: dict[str, Any]) -> Any:
         if iscoroutinefunction(self.operation):
             return await self.operation(**input_)
         else:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Generator
 import copy
 
 from sprinkler.runnable.base import Runnable
@@ -54,6 +54,37 @@ class Pipeline(Runnable):
         self.member_id_set.add(runnable.id)
     
 
+    def _run_generator(
+        self, 
+        context_: dict[str, Any], 
+        args: tuple,
+        kwargs: dict,
+        method_name: str
+    ) -> Generator[Any, None, None]:
+        
+        context_for_run = copy.deepcopy(self.context)
+
+        # add to global context in pipeline
+        if isinstance(context_, dict):
+            context_for_run.add_global(context_)
+        elif isinstance(context_, Context):
+            context_for_run.update(context_)
+        
+        if self.members:
+            runnable = self.members[0]
+            func = getattr(runnable, method_name)
+            output = yield func(context_for_run, *args, **kwargs)
+            context_for_run.add_history(output, runnable.id)
+
+        # run tasks as chain with context
+        for runnable in self.members[1:]:
+            func = getattr(runnable, method_name)
+            output = yield func(
+                context_for_run, **{config.OUTPUT_KEY: output}
+            )
+            context_for_run.add_history(output, runnable.id)
+
+
     def run(self, *args, **kwargs) -> Any:
         """run the pipeline flows
 
@@ -66,28 +97,17 @@ class Pipeline(Runnable):
     
 
     def run_with_context(self, context_: dict[str, Any], *args, **kwargs) -> Any:
-        context_for_run = copy.deepcopy(self.context)
-
-        # add to global context in pipeline
-        if isinstance(context_, dict):
-            context_for_run.add_global(context_)
-        elif isinstance(context_, Context):
-            context_for_run.update(context_)
+        gen = self._run_generator(context_, args, kwargs, 'run_with_context')
+        output = None
         
-        if self.members:
-            runnable = self.members[0]
-            output = runnable.run_with_context(context_for_run, *args, **kwargs)
-            context_for_run.add_history(output, runnable.id)
-
-        # run tasks as chain with context
-        for runnable in self.members[1:]:
-            output = runnable.run_with_context(
-                context_for_run, 
-                **{config.OUTPUT_KEY: output}
-            )
-            context_for_run.add_history(output, runnable.id)
+        while True:
+            try:
+                output = gen.send(output)
+            except StopIteration:
+                break
 
         return output
+
 
 
     async def arun(self, *args, **kwargs) -> Any:
@@ -100,26 +120,15 @@ class Pipeline(Runnable):
         *args,
         **kwargs
     ) -> Any:
-        context_for_run = copy.deepcopy(self.context)
-
-        # add to global context in pipeline
-        if isinstance(context_, dict):
-            context_for_run.add_global(context_)
-        elif isinstance(context_, Context):
-            context_for_run.update(context_)
         
-        if self.members:
-            runnable = self.members[0]
-            output = await runnable.arun_with_context(context_for_run, *args, **kwargs)
-            context_for_run.add_history(output, runnable.id)
-
-        # run tasks as chain with context
-        for runnable in self.members[1:]:
-            output = await runnable.arun_with_context(
-                context_for_run, 
-                **{config.OUTPUT_KEY: output}
-            )
-            context_for_run.add_history(output, runnable.id)
+        gen = self._run_generator(context_, args, kwargs, 'arun_with_context')
+        output = None
+        
+        while True:
+            try:
+                output = await gen.send(output)
+            except StopIteration:
+                break
 
         return output
 
