@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 import copy
+import asyncio
 
 from sprinkler.runnable.base import Runnable
 from sprinkler.context.base import Context
@@ -85,17 +86,48 @@ class Group(Runnable):
         return results
 
 
-    async def arun(self, *args, **kwargs) -> Any:
-        return self.arun_with_context({}, **kwargs)
+    async def arun(self, *_unused, **inputs) -> Any:
+        return await self.arun_with_context({}, **inputs)
 
 
     async def arun_with_context(
-        self,
+        self, 
         context_: dict[str, Any] | Context,
-        *args,
-        **kwargs
+        *_unused,
+        **inputs
     ) -> Any:
-        return self.run_with_context(context_, **kwargs)
+        
+        context_for_run = copy.deepcopy(self.context)
+
+        if isinstance(context_, dict):
+            context_for_run.add_global(context_)
+        elif isinstance(context_, Context):
+            context_for_run.update(context_)
+
+        if config.OUTPUT_KEY in inputs:
+            inputs[config.DEFAULT_GROUP_INPUT_KEY] = inputs[config.OUTPUT_KEY]
+            del inputs[config.OUTPUT_KEY]
+
+        coros = []
+        
+        for runnable in self.members:
+            input_ = (
+                inputs.get(runnable.id) 
+                or inputs.get(config.DEFAULT_GROUP_INPUT_KEY) 
+                or None
+            )
+
+            coros.append(runnable.arun_with_context(
+                copy.deepcopy(context_for_run),
+                **{config.OUTPUT_KEY: input_}
+            ))
+        
+        results = {
+            self.members[i].id: result 
+            for i, result in enumerate(await asyncio.gather(*coros))
+        }
+        
+        return results
 
 
     def __call__(self, *_unused, **inputs) -> Any:

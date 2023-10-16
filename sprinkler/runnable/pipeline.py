@@ -91,7 +91,7 @@ class Pipeline(Runnable):
 
 
     async def arun(self, *args, **kwargs) -> Any:
-        return self.arun_with_context({}, *args, **kwargs)
+        return await self.arun_with_context({}, *args, **kwargs)
 
 
     async def arun_with_context(
@@ -100,7 +100,28 @@ class Pipeline(Runnable):
         *args,
         **kwargs
     ) -> Any:
-        return self.run_with_context(context_, *args, **kwargs)
+        context_for_run = copy.deepcopy(self.context)
+
+        # add to global context in pipeline
+        if isinstance(context_, dict):
+            context_for_run.add_global(context_)
+        elif isinstance(context_, Context):
+            context_for_run.update(context_)
+        
+        if self.members:
+            runnable = self.members[0]
+            output = await runnable.arun_with_context(context_for_run, *args, **kwargs)
+            context_for_run.add_history(output, runnable.id)
+
+        # run tasks as chain with context
+        for runnable in self.members[1:]:
+            output = await runnable.arun_with_context(
+                context_for_run, 
+                **{config.OUTPUT_KEY: output}
+            )
+            context_for_run.add_history(output, runnable.id)
+
+        return output
 
 
     def __call__(self, *args, **kwargs) -> Any:
