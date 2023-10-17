@@ -195,7 +195,7 @@ class Task(Runnable):
                     self.operation,
                     input_
                 )
-                return future.result()
+            return future.result()
         else:
             return self.operation(**input_)
 

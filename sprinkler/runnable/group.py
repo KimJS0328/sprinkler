@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Generator
 from functools import partial
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 import copy
 import asyncio
 
@@ -19,7 +20,7 @@ class Group(Runnable):
     context: Context
 
 
-    def __init__(self, id_: str, context: dict[str, Any] = None) -> None:
+    def __init__(self, id_: str, context: dict[str, Any] = None, worker: str = 'thread') -> None:
         """Initialize the Group with context.
         
         Args:
@@ -29,6 +30,11 @@ class Group(Runnable):
         self.members = []
         self.member_id_set = set()
         self.context = Context()
+
+        if not worker in {'thread', 'process'}:
+            raise ValueError(f'worker must be one of \'thread\' or \'process\'')
+
+        self.worker = worker
 
         if context:
             self.context.add_global(context)
@@ -91,13 +97,21 @@ class Group(Runnable):
         *_unused,
         **inputs
     ) -> dict[str, Any]:
+        
+        results = {}
 
-        return {
-            id_: func()
+        Executor = (
+            ThreadPoolExecutor if self.worker == 'thread' 
+            else ProcessPoolExecutor
+        )
+        
+        with Executor() as executor:
             for id_, func in self._generator_for_run(
                 context_, inputs, 'run_with_context'
-            )
-        }
+            ):
+                results[id_] = executor.submit(func)
+
+        return {id_: result.result() for id_, result in results.items()}
 
 
     async def arun(self, *_unused, **inputs) -> Any:
