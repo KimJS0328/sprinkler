@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Generator
+from functools import partial
 import copy
+import asyncio
 
 from sprinkler.runnable.base import Runnable
 from sprinkler.context.base import Context
@@ -44,18 +46,12 @@ class Group(Runnable):
         self.member_id_set.add(runnable.id)
 
 
-    def run(self, *_unused, **inputs) -> dict[str, Any]:
-        """
-        """
-        return self.run_with_context({}, **inputs)
-
-
-    def run_with_context(
+    def _generator_for_run(
         self, 
         context_: dict[str, Any] | Context,
-        *_unused,
-        **inputs
-    ) -> dict[str, Any]:
+        inputs: dict[str, Any],
+        method_name: str
+    ) -> Generator[tuple[str, Any], None, None]:
         
         context_for_run = copy.deepcopy(self.context)
 
@@ -68,19 +64,63 @@ class Group(Runnable):
             inputs[config.DEFAULT_GROUP_INPUT_KEY] = inputs[config.OUTPUT_KEY]
             del inputs[config.OUTPUT_KEY]
 
-        results = {}
-        
         for runnable in self.members:
             input_ = (
                 inputs.get(runnable.id) 
                 or inputs.get(config.DEFAULT_GROUP_INPUT_KEY) 
                 or None
             )
-
-            results[runnable.id] = runnable.run_with_context(
+            func = partial(
+                getattr(runnable, method_name), 
                 copy.deepcopy(context_for_run),
                 **{config.OUTPUT_KEY: input_}
             )
+
+            yield runnable.id, func
+
+
+    def run(self, *_unused, **inputs) -> dict[str, Any]:
+        """
+        """
+        return self.run_with_context({}, **inputs)
+
+
+    def run_with_context(
+        self, 
+        context_: dict[str, Any] | Context,
+        *_unused,
+        **inputs
+    ) -> dict[str, Any]:
+
+        return {
+            id_: func()
+            for id_, func in self._generator_for_run(
+                context_, inputs, 'run_with_context'
+            )
+        }
+
+
+    async def arun(self, *_unused, **inputs) -> Any:
+        return await self.arun_with_context({}, **inputs)
+
+
+    async def arun_with_context(
+        self, 
+        context_: dict[str, Any] | Context,
+        *_unused,
+        **inputs
+    ) -> Any:
+
+        coros = [
+            func() for _, func in self._generator_for_run(
+                context_, inputs, 'arun_with_context'
+            )
+        ]
+        
+        results = {
+            self.members[i].id: result 
+            for i, result in enumerate(await asyncio.gather(*coros))
+        }
         
         return results
 
