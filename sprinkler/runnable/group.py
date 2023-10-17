@@ -46,7 +46,7 @@ class Group(Runnable):
         self.member_id_set.add(runnable.id)
 
 
-    def _run_generator(
+    def _generator_for_run(
         self, 
         context_: dict[str, Any] | Context,
         inputs: dict[str, Any],
@@ -94,7 +94,7 @@ class Group(Runnable):
 
         return {
             id_: func()
-            for id_, func in self._run_generator(
+            for id_, func in self._generator_for_run(
                 context_, inputs, 'run_with_context'
             )
         }
@@ -112,7 +112,7 @@ class Group(Runnable):
     ) -> Any:
 
         coros = [
-            func() for _, func in self._run_generator(
+            func() for _, func in self._generator_for_run(
                 context_, inputs, 'arun_with_context'
             )
         ]

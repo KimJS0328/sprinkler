@@ -146,7 +146,7 @@ class Task(Runnable):
         return self.run(*args, **kwargs)
     
 
-    def _run_generator(
+    def _generator_for_run(
         self,
         context_: dict[str, Any] | Context,
         args: tuple,
@@ -179,7 +179,7 @@ class Task(Runnable):
     ) -> Any:
         """Run the task with given context synchronously."""
 
-        gen = self._run_generator(context_, args, kwargs)
+        gen = self._generator_for_run(context_, args, kwargs)
         input_ = next(gen)
         try:
             gen.send(self._run_operation(input_))
@@ -217,7 +217,7 @@ class Task(Runnable):
         **kwargs
     ) -> Any:
         
-        gen = self._run_generator(context_, args, kwargs)
+        gen = self._generator_for_run(context_, args, kwargs)
         input_ = next(gen)
         try: 
             gen.send(await self._arun_operation(input_))

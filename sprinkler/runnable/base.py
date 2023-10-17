@@ -6,6 +6,9 @@ from sprinkler.context.base import Context
 
 
 class Runnable:
+
+    id: str
+
     def run(self, *args, **kwargs) -> Any:
         raise NotImplementedError
 

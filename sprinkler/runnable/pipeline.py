@@ -54,13 +54,13 @@ class Pipeline(Runnable):
         self.member_id_set.add(runnable.id)
     
 
-    def _run_generator(
+    def _generator_for_run(
         self, 
         context_: dict[str, Any], 
         args: tuple,
         kwargs: dict,
         method_name: str
-    ) -> Generator[Any, None, None]:
+    ) -> Generator[Any, Any, None]:
         
         context_for_run = copy.deepcopy(self.context)
 
@@ -97,7 +97,7 @@ class Pipeline(Runnable):
     
 
     def run_with_context(self, context_: dict[str, Any], *args, **kwargs) -> Any:
-        gen = self._run_generator(context_, args, kwargs, 'run_with_context')
+        gen = self._generator_for_run(context_, args, kwargs, 'run_with_context')
         output = None
         
         while True:
@@ -107,7 +107,6 @@ class Pipeline(Runnable):
                 break
 
         return output
-
 
 
     async def arun(self, *args, **kwargs) -> Any:
@@ -121,7 +120,7 @@ class Pipeline(Runnable):
         **kwargs
     ) -> Any:
         
-        gen = self._run_generator(context_, args, kwargs, 'arun_with_context')
+        gen = self._generator_for_run(context_, args, kwargs, 'arun_with_context')
         output = None
         
         while True:
