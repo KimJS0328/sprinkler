@@ -114,3 +114,32 @@ def test_group_with_default_input():
         'pipeline1': 'sprinklersprinklersprinkler',
         'pipeline2': [1, 2, 3, 1, 2, 3, 1, 2, 3]
     }
+
+
+def test_group_with_max_workers():
+    def repeat_string(string: str, repeat: int) -> str:
+        return string * repeat
+    
+    def repeat_array(array: list, repeat: int) -> list:
+        return array * repeat
+    
+    pipeline1 = Pipeline('pipeline1')
+    pipeline1.add(Task('repeat_string', repeat_string))
+
+    pipeline2 = Pipeline('pipeline2')
+    pipeline2.add(Task('repeat_array', repeat_array))
+
+    group = Group('group', max_workers=2)
+    group.add(pipeline1)
+    group.add(pipeline2)
+
+    result = group.run_with_context(
+        {'repeat': 3},
+        pipeline1='sprinkler',
+        pipeline2=[1,2,3]
+    )
+
+    assert result == {
+        'pipeline1': 'sprinklersprinklersprinkler',
+        'pipeline2': [1, 2, 3, 1, 2, 3, 1, 2, 3]
+    }

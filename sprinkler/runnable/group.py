@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from typing import Any, Generator
 from functools import partial
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from concurrent.futures import (
+    ThreadPoolExecutor,
+    ProcessPoolExecutor,
+    Executor
+)
 import copy
 import asyncio
 
@@ -18,9 +22,18 @@ class Group(Runnable):
     members: list[Runnable]
     member_id_set: set[str]
     context: Context
+    executor_type: str
+    executor_kwargs: dict
 
 
-    def __init__(self, id_: str, context: dict[str, Any] = None, worker: str = 'thread') -> None:
+    def __init__(
+        self,
+        id_: str,
+        *,
+        context: dict[str, Any] = None,
+        executor_type: str = None,
+        **executor_kwargs
+    ) -> None:
         """Initialize the Group with context.
         
         Args:
@@ -31,13 +44,14 @@ class Group(Runnable):
         self.member_id_set = set()
         self.context = Context()
 
-        if not worker in {'thread', 'process'}:
-            raise ValueError(f'worker must be one of \'thread\' or \'process\'')
-
-        self.worker = worker
-
         if context:
             self.context.add_global(context)
+
+        if executor_type is not None and executor_type not in {'thread', 'process'}:
+            raise ValueError(f'`executor_type` must be one of \'thread\' or \'process\'')
+
+        self.executor_type = executor_type
+        self.executor_kwargs = executor_kwargs
 
 
     def add(self, runnable: Runnable):
@@ -85,7 +99,11 @@ class Group(Runnable):
             yield runnable.id, func
 
 
-    def run(self, *_unused, **inputs) -> dict[str, Any]:
+    def run(
+        self,
+        *_unused,
+        **inputs
+    ) -> dict[str, Any]:
         """
         """
         return self.run_with_context({}, **inputs)
@@ -100,18 +118,29 @@ class Group(Runnable):
         
         results = {}
 
-        Executor = (
-            ThreadPoolExecutor if self.worker == 'thread' 
-            else ProcessPoolExecutor
-        )
-        
-        with Executor() as executor:
+        with self._select_executor() as executor:
             for id_, func in self._generator_for_run(
                 context_, inputs, 'run_with_context'
             ):
                 results[id_] = executor.submit(func)
 
-        return {id_: result.result() for id_, result in results.items()}
+        return {
+            id_: result.result()
+            for id_, result in results.items()
+        }
+
+
+    def _select_executor(
+        self
+    ) -> Executor:
+
+        if self.executor_type is not None:
+            if self.executor_type == 'process':
+                return ProcessPoolExecutor(**self.executor_kwargs)
+            else:
+                return ThreadPoolExecutor(**self.executor_kwargs)
+        else:
+            return ThreadPoolExecutor(**self.executor_kwargs)
 
 
     async def arun(self, *_unused, **inputs) -> Any:
