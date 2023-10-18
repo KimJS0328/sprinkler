@@ -14,6 +14,13 @@ Icon
 # Thumbnails
 ._*
 
+# VScode Settings
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
 # Files that might appear in the root of a volume
 .DocumentRevisions-V100
 .fseventsd

@@ -32,7 +32,6 @@ def _create_input_config_and_query(
     input_query = OrderedDict() # {argument name}: {source}
 
     for param in parameters.values():
-
         param_config = user_config.get(param.name, {})
 
         if not isinstance(param_config, dict):
@@ -83,6 +82,8 @@ class Task(Runnable):
     """The unit of operation in pipeline."""
 
     id: str = 'Unnamed Task'
+    operation: Callable
+    context: dict[str | Any]
     input_config: dict = {}
     _input_query: OrderedDict[str, str] = OrderedDict()
     _input_model: BaseModel
@@ -93,6 +94,7 @@ class Task(Runnable):
         self,
         id_: str,
         operation: Callable,
+        context: dict[str | Any] | None = None,
         *,
         input_config: dict[str, Any | dict[str, Any]] | None = None,
         output_config: dict[str, Any] | Any | None = None,
@@ -116,16 +118,19 @@ class Task(Runnable):
         
         self.operation = operation
 
+        self.context = context
+
         self.input_config, self._input_query = _create_input_config_and_query(
             self.operation, 
             input_config or {}
         )
-        
+
         # create input pydantic model for validation
         self._input_model = create_model(
             f'TaskInput_{self.id}',
             **{
-                name: (config['type'], config.get('default') or ...)
+                name: (config['type'], 
+                       config['default'] if 'default' in config else ... )
                 for name, config in self.input_config.items()
             }
         )
@@ -233,8 +238,10 @@ class Task(Runnable):
 
 
     def _bind_input(self, context: Context, args: tuple, kwargs: dict) -> dict[str, Any]:
-        arguments = context.get_kwargs(self._input_query)
+        arguments = self.context if self.context else {}
+        arguments.update(context.get_kwargs(self._input_query))
         arguments.update(kwargs)
+
         arguments = {arg: val for arg, val in arguments.items() if arg in self._input_query}
 
         remaining_params = [param for param in self._input_query if param not in arguments]
@@ -279,7 +286,7 @@ class Task(Runnable):
             keyword arguments of validated arguments
         """
         arguments = self._bind_input(context, args, kwargs)
-
+        
         try:
             return (self._input_model
                 .model_validate(arguments)
