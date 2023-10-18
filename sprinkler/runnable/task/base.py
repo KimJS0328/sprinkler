@@ -13,8 +13,8 @@ from sprinkler.runnable.base import Runnable
 from sprinkler.context.base import Context
 
 
-def _none_if_empty(value: Any) -> Any:
-    return None if value is Parameter.empty else value
+# def _none_if_empty(value: Any) -> Any:
+#     return None if value is Parameter.empty else value
 
 
 def _create_input_config_and_query(
@@ -22,7 +22,6 @@ def _create_input_config_and_query(
     user_config: dict
 ) -> tuple[dict, dict]:
     """
-    
     """
     
     parameters = signature(operation).parameters
@@ -40,13 +39,13 @@ def _create_input_config_and_query(
 
         # create the base of input_config
         input_config[param.name] = {
-            'type': param_config.get('type') or annotations_.get(param.name) or Any,
-            'src': param_config.get('src') or param.name
+            'type': param_config.get('type', annotations_.get(param.name, Any)),
+            'src': param_config.get('src', param.name)
         }
 
-        default = param_config.get('default') or _none_if_empty(param.default)
+        default = param_config.get('default', param.default)
 
-        if default is not None:
+        if default is not Parameter.empty:
             input_config[param.name]['default'] = default
 
         input_query[param.name] = input_config[param.name]['src']
@@ -59,29 +58,19 @@ def _create_output_config(
     user_config: Any
 ) -> dict:
     """
-    
     """
     annotations_ = get_type_hints(operation)
 
-    if user_config is not None:
-        output_type = user_config
-
-    elif 'return' in annotations_:
-        output_type = annotations_['return']
-
-    else:
-        output_type = Any
-
     return {
         config.OUTPUT_KEY: {
-            'type': output_type
+            'type': user_config or annotations_.get('return', Any)
         }
     }
 
 
 def _create_pydantic_model_cls(name: str, config: dict):
     return create_model(name, **{
-        name: (field['type'], field.get('default') or ...)
+        name: (field['type'], field.get('default', ...))
         for name, field in config.items()
     })
 
@@ -93,8 +82,6 @@ class Task(Runnable):
     input_config: dict
     output_config: dict
     _input_query: OrderedDict[str, str]
-    _input_model: BaseModel
-    _output_model: BaseModel
     
 
     def __init__(
@@ -128,18 +115,10 @@ class Task(Runnable):
             self.operation, 
             input_config or {}
         )
-        
-        # create input pydantic model for validation
-        # self._input_model = _create_pydantic_model_cls(
-        #     f'TaskInput_{self.id}', self.input_config
-        # )
 
-        self.output_config = _create_output_config(self.operation, output_config)
-
-        # create output pydantic model for validation
-        # self._output_model = _create_pydantic_model_cls(
-        #     f'TaskOutput_{self.id}', self.output_config
-        # )
+        self.output_config = _create_output_config(
+            self.operation, output_config
+        )
 
 
     def __call__(self, *args, **kwargs) -> Any:
