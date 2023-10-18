@@ -23,6 +23,23 @@ def construct_messages(
     return messages
 
 
+def chat_completion(
+    messages: List[Dict[str, Any]] = None,
+    *,
+    model: str = config.DEFAULT_OPENAI_MODEL,
+    stream: bool = False,
+    #**kwargs: Optional[Any]
+) -> str:
+    try:
+        response = openai.ChatCompletion.create(
+            model = model,
+            messages = messages,
+            stream = stream,
+            #**kwargs
+        )
 
+        return response['choices'][0]['message']['content'].strip()
+    except Exception as e:
+        print(f"API Error: {e}")
     
     
