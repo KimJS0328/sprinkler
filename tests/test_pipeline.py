@@ -171,7 +171,7 @@ def test_pipeline_with_context1():
         input_config={'a': {'src': 'task1'}}
     )
 
-    p = Pipeline('pipeline', {'b': 10})
+    p = Pipeline('pipeline', context={'b': 10})
     p.add(task1)
     p.add(task2)
     p.add(task3)
@@ -207,7 +207,7 @@ def test_pipeline_with_context2():
         input_config={'a': {'src': 'task1'}}
     )
 
-    p = Pipeline('pipeline', {'b': 10})
+    p = Pipeline('pipeline', context={'b': 10})
     p.add(task1)
     p.add(task2)
     p.add(task3)

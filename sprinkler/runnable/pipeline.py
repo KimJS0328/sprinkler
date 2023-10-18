@@ -23,7 +23,12 @@ class Pipeline(Runnable):
     member_id_set: set[str]
     context: Context
 
-    def __init__(self, id_: str, context: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        id_: str,
+        *,
+        context: dict[str, Any] | None = None
+    ) -> None:
         """Initializes the pipeline instance with context
 
         Args:
