@@ -79,12 +79,20 @@ def _create_output_config(
     }
 
 
+def _create_pydantic_model_cls(name: str, config: dict):
+    return create_model(name, **{
+        name: (field['type'], field.get('default') or ...)
+        for name, field in config.items()
+    })
+
+
 class Task(Runnable):
     """The unit of operation in pipeline."""
 
     id: str = 'Unnamed Task'
-    input_config: dict = {}
-    _input_query: OrderedDict[str, str] = OrderedDict()
+    input_config: dict
+    output_config: dict
+    _input_query: OrderedDict[str, str]
     _input_model: BaseModel
     _output_model: BaseModel
     
@@ -122,24 +130,16 @@ class Task(Runnable):
         )
         
         # create input pydantic model for validation
-        self._input_model = create_model(
-            f'TaskInput_{self.id}',
-            **{
-                name: (config['type'], config.get('default') or ...)
-                for name, config in self.input_config.items()
-            }
-        )
+        # self._input_model = _create_pydantic_model_cls(
+        #     f'TaskInput_{self.id}', self.input_config
+        # )
 
         self.output_config = _create_output_config(self.operation, output_config)
 
         # create output pydantic model for validation
-        self._output_model = create_model(
-            f'TaskOutput_{self.id}',
-            **{
-                name: (config['type'], ...)
-                for name, config in self.output_config.items()
-            }
-        )
+        # self._output_model = _create_pydantic_model_cls(
+        #     f'TaskOutput_{self.id}', self.output_config
+        # )
 
 
     def __call__(self, *args, **kwargs) -> Any:
@@ -279,9 +279,12 @@ class Task(Runnable):
             keyword arguments of validated arguments
         """
         arguments = self._bind_input(context, args, kwargs)
+        input_model = _create_pydantic_model_cls(
+            f'TaskInput_{self.id}', self.input_config
+        )
 
         try:
-            return (self._input_model
+            return (input_model
                 .model_validate(arguments)
                 .model_dump())
         
@@ -297,9 +300,12 @@ class Task(Runnable):
         """
 
         output = {config.OUTPUT_KEY: output}
+        output_model = _create_pydantic_model_cls(
+            f'TaskOutput_{self.id}', self.output_config
+        )
 
         try:
-            return (self._output_model
+            return (output_model
                 .model_validate(output)
                 .model_dump()[config.OUTPUT_KEY])
         

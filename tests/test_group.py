@@ -116,11 +116,11 @@ def test_group_with_default_input():
     }
 
 
-def test_group_with_max_workers():
-    def repeat_string(string: str, repeat: int) -> str:
+def test_group_with_default_arguments():
+    def repeat_string(string: str, repeat: int = 3) -> str:
         return string * repeat
     
-    def repeat_array(array: list, repeat: int) -> list:
+    def repeat_array(array: list, repeat: int = 3) -> list:
         return array * repeat
     
     pipeline1 = Pipeline('pipeline1')
@@ -133,10 +133,9 @@ def test_group_with_max_workers():
     group.add(pipeline1)
     group.add(pipeline2)
 
-    result = group.run_with_context(
-        {'repeat': 3},
-        pipeline1='sprinkler',
-        pipeline2=[1,2,3]
+    result = group.run(
+        pipeline1=('sprinkler',),
+        pipeline2=([1,2,3],)
     )
 
     assert result == {
