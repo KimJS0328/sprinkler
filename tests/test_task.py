@@ -195,3 +195,16 @@ def test_instance_method():
 
     assert output == 25
 
+
+def test_task_without_paramter():
+    def operation():
+        return 5
+    
+    task = Task(
+        'without parameter',
+        operation
+    )
+
+    output = task()
+
+    assert output == 5

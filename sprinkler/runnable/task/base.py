@@ -13,10 +13,6 @@ from sprinkler.runnable.base import Runnable
 from sprinkler.context.base import Context
 
 
-def _none_if_empty(value: Any) -> Any:
-    return None if value is Parameter.empty else value
-
-
 def _create_input_config_and_query(
     operation: Callable,
     user_config: dict
@@ -43,10 +39,10 @@ def _create_input_config_and_query(
             'src': param_config.get('src') or param.name
         }
 
-        default = param_config.get('default') or _none_if_empty(param.default)
-
-        if default is not None:
-            input_config[param.name]['default'] = default
+        if 'default' in param_config:
+            input_config[param.name]['default'] = param_config['default']
+        elif param.default is not Parameter.empty:
+            input_config[param.name]['default'] = param.default
 
         input_query[param.name] = input_config[param.name]['src']
 
@@ -60,14 +56,14 @@ def _create_output_config(
     """
     
     """
-    annotations_ = get_type_hints(operation)
 
     if user_config is not None:
         output_type = user_config
 
-    elif 'return' in annotations_:
-        output_type = annotations_['return']
+    annotations_ = get_type_hints(operation)
 
+    if 'return' in annotations_:
+        output_type = annotations_['return']
     else:
         output_type = Any
 
@@ -130,7 +126,7 @@ class Task(Runnable):
             f'TaskInput_{self.id}',
             **{
                 name: (config['type'], 
-                       config['default'] if 'default' in config else ... )
+                    config['default'] if 'default' in config else ... )
                 for name, config in self.input_config.items()
             }
         )
