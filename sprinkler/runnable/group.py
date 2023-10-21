@@ -54,16 +54,19 @@ class Group(Runnable):
         self.executor_kwargs = executor_kwargs
 
 
-    def add(self, runnable: Runnable):
+    def add(self, *args: Runnable) -> Group:
         """Add new `Runnable` instance to this group"""
-        if not isinstance(runnable, Runnable):
-            raise TypeError('Given task parameter is not `Runnable` instance')
-        
-        if runnable.id in self.member_id_set:
-            raise Exception(f'`Runnable` \'{runnable.id}\' is already exsists')
-        
-        self.members.append(runnable)
-        self.member_id_set.add(runnable.id)
+        for runnable in args:
+            if not isinstance(runnable, Runnable):
+                raise TypeError('Given task parameter is not `Runnable` instance')
+            
+            if runnable.id in self.member_id_set:
+                raise Exception(f'`Runnable` \'{runnable.id}\' is already exsists')
+            
+            self.members.append(runnable)
+            self.member_id_set.add(runnable.id)
+
+        return self
 
 
     def _generator_for_run(
@@ -130,9 +133,7 @@ class Group(Runnable):
         }
 
 
-    def _select_executor(
-        self
-    ) -> Executor:
+    def _select_executor(self) -> Executor:
 
         if self.executor_type is not None:
             if self.executor_type == 'process':

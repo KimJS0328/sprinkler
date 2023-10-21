@@ -43,20 +43,23 @@ class Pipeline(Runnable):
             self.context.add_global(context)
         
 
-    def add(self, runnable: Runnable) -> None:
+    def add(self, *args: Runnable) -> Pipeline:
         """Add the `Runnable` instance to pipeline
 
         Args:
             runnable: the Runnable instance
         """
-        if not isinstance(runnable, Runnable):
-            raise TypeError('Given task parameter is not `Runnable` instance')
+        for runnable in args:
+            if not isinstance(runnable, Runnable):
+                raise TypeError('Given task parameter is not `Runnable` instance')
+            
+            if runnable.id in self.member_id_set:
+                raise Exception(f'`Runnable` \'{runnable.id}\' is already exsists')
+            
+            self.members.append(runnable)
+            self.member_id_set.add(runnable.id)
         
-        if runnable.id in self.member_id_set:
-            raise Exception(f'`Runnable` \'{runnable.id}\' is already exsists')
-        
-        self.members.append(runnable)
-        self.member_id_set.add(runnable.id)
+        return self
     
 
     def _generator_for_run(
