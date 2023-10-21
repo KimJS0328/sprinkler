@@ -11,10 +11,20 @@ class PromptTask(Task):
     def __init__(
         self, 
         id_: str,
-        context_: Dict[str | Any] | None = None
+        context_: Dict[str | Any] | None = None,
+        *,
+        input_config: Dict[str, Dict] = {}
     ) -> None:
-        input_config = {'messages': List[Any],
-                        'input_variables': Dict[str, Any]}
+        
+        if 'messages' in input_config:
+            input_config['messages']['type'] = List[Any]
+        else:
+            input_config['messages'] = {'type': List[Any]}
+
+        if 'input_variables' in input_config:
+            input_config['input_variables']['type'] = Dict[str, Any]
+        else:
+            input_config['input_variables'] = {'type': Dict[str, Any]}
 
         super().__init__(id_, 
                         construct_messages,

@@ -1,6 +1,9 @@
 import pytest
 
+from sprinkler.prompt_template import PromptTemplate, SystemPromptTemplate, AssistantPromptTemplate
+from sprinkler.runnable.task.prompt import PromptTask
 from sprinkler.runnable.task.chat import ChatCompletionTask
+from sprinkler import Pipeline
 
 def test_chat_completion_task_base():
     task = ChatCompletionTask(
@@ -8,7 +11,8 @@ def test_chat_completion_task_base():
     )
 
     chat_response = task(
-        [{'role': 'user', 'content': 'Hello, my name is Jung Sik'}])
+        [{'role': 'user', 'content': 'Hello, my name is Jung Sik'}]
+    )
     
     assert chat_response is not None
 
@@ -38,20 +42,20 @@ def test_function_call_base():
             "name": "get_current_weather",
             "description": "Get the current weather in a given location",
             "parameters": {
-                "type": "object",
-                "properties": {
-                "location": {
-                    "type": "string",
-                    "description": "The city and state, e.g. San Francisco, CA"
-                },
-                "unit": {
-                    "type": "string",
-                    "enum": ["celsius", "fahrenheit"]
-                }
+                    "type": "object",
+                    "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "The city and state, e.g. San Francisco, CA"
+                    },
+                    "unit": {
+                        "type": "string",
+                        "enum": ["celsius", "fahrenheit"]
+                    }
                 },
                 "required": ["location"]
             }
-            }],
+        }],
         function_call="auto"
     )
 
@@ -67,3 +71,27 @@ def test_cc_with_multiple_choices():
     )
 
     assert len(chat_response) == 3
+
+
+def test_pipeline_prompt_chat():
+    messages = [SystemPromptTemplate('You are a student under professor Jungsik'),
+                AssistantPromptTemplate('Jungsik is {identity}'),
+                PromptTemplate('Do you know Jungsik?')]
+
+    task_prompt = PromptTask('prompt',
+                      {'messages': messages})
+    
+    task_chat = ChatCompletionTask('chat',
+                                   {'temperature': 0.8,
+                                    'retry_count': 2},
+                                    input_config={'messages': {'src': 'prompt'}})
+    
+    pipeline = Pipeline('pipe')
+    pipeline.add(task_prompt)
+    pipeline.add(task_chat)
+
+    output = pipeline.run({'identity': 'genius'})
+
+    print(output)
+
+    assert 'Jungsik' in output
