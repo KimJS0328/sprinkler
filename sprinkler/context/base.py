@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from typing import Any
-from collections import OrderedDict
-from collections.abc import Mapping
+from collections.abc import Iterable
+
+from sprinkler.constants import null
+from sprinkler.utils import recursive_search
 
 
 class Context:
@@ -23,32 +25,32 @@ class Context:
         self.history_context = {}
 
 
-    def get_kwargs(self, query: OrderedDict[str, str]) -> dict[str, Any]:
-        """Retrieve arguments in context requested by query
+    def query(self, queries: Iterable) -> dict[str, Any]:
+        """Retrieve arguments in context requested by queries
 
         result doesn't include value which doesn't exist in context
         priority: history(if task_id is specifed) -> global
         
         Args:
-            query: key-value pair with {argument_name}: {source}
+            queries: key-value pair with {argument_name}: {source}
 
         Returns:
             Tuple of arguments (tuple) and keyword argument (dictionary)
         """
-        kwargs = {}
+        context = {}
 
-        for param, src in query.items():
-            # match argument with history context
-            result = self._recursive_search(src.split('.'), self.history_context)
+        for query in queries:
 
-            if result is not self.NotFound:
-                kwargs[param] = result
+            result = recursive_search(query, self.history_context)
+
+            if result is not null:
+                context[query] = result
             else:
-                # match argument with global context
-                if src in self.global_context:
-                    kwargs[param] = self.global_context[src]
+                result = recursive_search(query, self.global_context)
+                if result is not null:
+                    context[query] = result
 
-        return kwargs
+        return context
 
     
     def add_global(self, context: dict[str, Any]) -> None:
@@ -77,20 +79,6 @@ class Context:
     def update(self, context: Context) -> None:
         self.global_context.update(context.global_context)
         self.history_context.update(context.history_context)
-
-
-    class NotFound:
-        ...
-
-
-    def _recursive_search(self, path: list[str], target: Mapping) -> Any:
-        for key in path:
-            try:
-                target = target[key]
-            except:
-                return self.NotFound
-
-        return target
 
 
     def __str__(self) -> str:
