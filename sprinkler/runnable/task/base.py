@@ -65,14 +65,17 @@ class Task(Runnable):
     """The unit of operation in pipeline."""
 
     id: str = 'Unnamed Task'
-    input_config: OrderedDict
-    output_config: OrderedDict
+    operation: Callable
+    _input_model_config: dict[str, tuple]
+    _output_model_config: dict[str, tuple]
+    _param_with_key: dict[K, list[str]]
+    _ctx_with_key: dict[K, list[str]]
     
 
     def __init__(
         self,
         id_: str,
-        operation: Callable
+        operation: Callable | None = None
     ) -> None:
         """Initialize the task class.
 
@@ -85,19 +88,74 @@ class Task(Runnable):
             raise TypeError(f'id must be str.')
         
         self.id = id_
-
-        if not callable(operation):
-            raise TypeError(f'Task {self.id}: operation must be callable.')
-        
         self.operation = operation
 
-        self.input_config = _create_input_config(self.operation)
+        if self.operation is not None:
+            self._set_operation_config()
 
-        self.output_config = _create_output_config(self.operation)
+
+    def _set_operation_config(self):
+        if not callable(self.operation):
+            raise TypeError(f'Task {self.id}: operation must be callable.')
+
+        params = signature(self.operation).parameters
+        anns = get_type_hints(self.operation)
+
+        self._set_input_config(params, anns)
+        self._set_output_config(anns)
+
+
+    def _set_input_config(self, params: OrderedDict[Parameter], anns: dict[str, Any]):
+        self._input_model_config = {}
+        self._param_with_key = {}
+        self._ctx_with_key = {}
+
+        for param in params.values():
+            config = anns.get(param.name, Any)
+
+            if not isinstance(config, _Ann):
+                config = Ann[config]
+
+            if config.is_ctx and not config.key:
+                config.key = K(param.name)
+
+            if param.default is not Parameter.empty:
+                config.default = param.default
+            else:
+                config.default = ...
+
+            self._input_model_config[param.name] = (config.type, config.default)
+
+            if config.is_ctx:
+                if config.key in self._ctx_with_key:
+                    self._ctx_with_key[config.key].append(param.name)
+                else:
+                    self._ctx_with_key[config.key] = [param.name]
+            else:
+                if config.key in self._param_with_key:
+                    self._param_with_key[config.key].append(param.name)
+                else:
+                    self._param_with_key[config.key] = [param.name]
+
+
+    def _set_output_config(self, anns: dict[str, any]):
+        config = anns.get('return', Any)
+
+        if not isinstance(config, _Ann):
+            config = Ann[config]
+        
+        self._output_model_config = {
+            OUTPUT_KEY: (config.type, ...)
+        }
 
 
     def __call__(self, *args, **kwargs) -> Any:
-        return self.run(*args, **kwargs)
+        if self.operation is None:
+            self.operation = args[0]
+            self._set_operation_config()
+            return self
+        else:
+            return self.run(*args, **kwargs)
     
 
     def _generator_for_run(
@@ -118,7 +176,7 @@ class Task(Runnable):
         output = self._validate_output(output)
 
         return output
-
+    
 
     def run(self, *args, **kwargs) -> Any:
         """Run the task synchronously."""
@@ -283,34 +341,31 @@ class K:
     
     def __bool__(self):
         return bool(self.key)
+    
+    def __eq__(self, __value: object) -> bool:
+        return self.key == __value.key
+    
+    def __hash__(self) -> int:
+        return hash(self.key)
 
 
 class _Ann:
 
     type: Any = null
     key: Any = null
-    _default: Any = null
-    _is_ctx: bool
+    default: Any = ...
+    is_ctx: bool
 
+    def __eq__(self, __value: object) -> bool:
+        return (
+            self.type == __value.type
+            and self.key == __value.key
+            and self.default == __value.default
+            and self.is_ctx == __value.is_ctx
+        )
 
     def __init__(self, is_ctx) -> None:
-        self._is_ctx = is_ctx
-
-
-    @property
-    def default(self):
-        return self._default if self._default is not null else ...
-    
-
-    @default.setter
-    def default(self, value):
-        self._default = value
-
-    
-    @property
-    def is_ctx(self):
-        return self._is_ctx
-
+        self.is_ctx = is_ctx
 
     def __getitem__(self, config):
         ann = Ann(self.is_ctx)
