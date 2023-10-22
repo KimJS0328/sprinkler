@@ -48,7 +48,7 @@ def test_pipeline_of_group2():
         return a * b
     
     @Task('t4')
-    def t4(a: str, b: Ann[int, K('t1', 1)]) -> str:
+    def t4(a: Ann[str, 't2'], b: Ann[int, K('t1', 1)]) -> str:
         return f'{a}-{b}'
     
     p = Pipeline('p').add(

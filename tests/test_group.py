@@ -51,13 +51,13 @@ def test_group_with_tuple_input():
 
     result = group.run_with_context(
         {'repeat': 3},
-        pipeline2=(3,4),
+        p2=(3,4),
         __default__='sprinkler'
     )
 
     assert result == {
-        'pipeline1': 'sprinklersprinklersprinkler',
-        'pipeline2': 7
+        'p1': 'sprinklersprinklersprinkler',
+        'p2': 7
     }
 
 
@@ -77,12 +77,12 @@ def test_group_with_no_input():
 
     result = group.run_with_context(
         {'repeat': 3},
-        pipeline1='sprinkler'
+        p1='sprinkler'
     )
 
     assert result == {
-        'pipeline1': 'sprinklersprinklersprinkler',
-        'pipeline2': 'sprinkler'
+        'p1': 'sprinklersprinklersprinkler',
+        'p2': 'sprinkler'
     }
 
 
@@ -101,11 +101,11 @@ def test_group_with_default_arguments():
     )
 
     result = group.run(
-        pipeline1=('sprinkler',),
-        pipeline2=([1,2,3],)
+        p1=('sprinkler',),
+        p2=([1,2,3],)
     )
 
     assert result == {
-        'pipeline1': 'sprinklersprinklersprinkler',
-        'pipeline2': [1, 2, 3, 1, 2, 3, 1, 2, 3]
+        'p1': 'sprinklersprinklersprinkler',
+        'p2': [1, 2, 3, 1, 2, 3, 1, 2, 3]
     }

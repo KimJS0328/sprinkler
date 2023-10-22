@@ -45,7 +45,7 @@ async def test_async_pipeline_of_group():
         return a + b
     
     @Task('t3')
-    async def t3(a: Ann[str, 't2'], b: Ann[int, t2]) -> str:
+    async def t3(a: Ann[str, 't2'], b: Ann[int, 't1']) -> str:
         return a * b
     
     @Task('t4')

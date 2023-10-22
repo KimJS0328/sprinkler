@@ -3,62 +3,16 @@ from __future__ import annotations
 from typing import Callable, Any, Generator, get_type_hints
 from inspect import signature, Parameter, iscoroutinefunction
 from collections import OrderedDict
+from itertools import chain
 from concurrent.futures import ThreadPoolExecutor
 import asyncio
 
-from pydantic import create_model, BaseModel, ValidationError
+from pydantic import create_model, ValidationError
 
 from sprinkler.constants import OUTPUT_KEY, null
+from sprinkler.utils import recursive_search, distribute_value
 from sprinkler.runnable.base import Runnable
 from sprinkler.context.base import Context
-
-
-def _create_input_config(operation: Callable) -> OrderedDict:
-    """
-    """
-    
-    parameters = signature(operation).parameters
-    annotations_ = get_type_hints(operation)
-
-    input_config = OrderedDict()
-
-    for param in parameters.values():
-
-        config = annotations_.get(param.name, Any)
-
-        if not isinstance(config, _Ann):
-            config = Ann[config]
-
-        if config.is_ctx and not config.key:
-            config.key = K(param.name)
-
-        if param.default is not Parameter.empty:
-            config.default = param.default
-
-        input_config[param.name] = config
-
-    return input_config
-
-
-def _create_output_config(operation: Callable) -> OrderedDict:
-    """
-    """
-    
-    config = get_type_hints(operation).get('return', Any)
-
-    if not isinstance(config, _Ann):
-        config = Ann[config]
-
-    return {
-        OUTPUT_KEY: config
-    }
-
-
-def _create_pydantic_model_cls(name: str, config: OrderedDict[str, _Ann]):
-    return create_model(name, **{
-        name: (ann.type, ann.default)
-        for name, ann in config.items()
-    })
 
 
 class Task(Runnable):
@@ -245,47 +199,33 @@ class Task(Runnable):
 
 
     def _bind_input(self, context: Context, args: tuple, kwargs: dict) -> dict[str, Any]:
-        inputs = context.query(self.input_config)
-        inputs.update(kwargs)
-        inputs = {
-            arg: val for arg, val in inputs.items() if arg in self.input_config
-        }
+        ctx = context.query(self._ctx_with_key.keys())
+        input_ = {}
 
-        remaining_params = [
-            param for param in self.input_config if param not in inputs
-        ]
-        
-        if not remaining_params:
-            return inputs
+        for key, value in ctx.items():
+            input_.update(distribute_value(
+                self._ctx_with_key[key],
+                value
+            ))
 
         if OUTPUT_KEY in kwargs:
-            input_ = kwargs[OUTPUT_KEY]
-
-            if len(remaining_params) == 1:
-                inputs[remaining_params[0]] = input_
-            
-            elif all(
-                hasattr(input_, attr) 
-                for attr in ('keys', '__getitem__', '__contains__')
-            ):
-                for param in remaining_params:
-                    if param in input_:
-                        inputs[param] = input_[param]
-
-            elif all(
-                hasattr(input_, attr) 
-                for attr in ('__iter__', '__len__')
-            ):
-                for param, val in zip(remaining_params, input_):
-                    inputs[param] = val
+            target = kwargs[OUTPUT_KEY]
+            for key, params in self._param_with_key.items():
+                result = recursive_search(key, target) if key else target
+                if result is not null:
+                    input_.update(distribute_value(
+                        params, result
+                    ))
 
         else:
-            input_ = args
+            params = chain.from_iterable(self._param_with_key.values())
 
-            for param, val in zip(remaining_params, input_):
-                inputs[param] = val
+            for param, arg in zip(params, args):
+                input_[param] = arg
+                
+            input_.update(kwargs)
 
-        return inputs
+        return input_
 
 
     def _validate_input(self, context: Context, args: tuple, kwargs: dict) -> dict[str, Any]:
@@ -295,8 +235,8 @@ class Task(Runnable):
             keyword arguments of validated arguments
         """
         arguments = self._bind_input(context, args, kwargs)
-        input_model = _create_pydantic_model_cls(
-            f'TaskInput_{self.id}', self.input_config
+        input_model = create_model(
+            f'TaskInput_{self.id}', **self._input_model_config
         )
 
         try:
@@ -316,8 +256,8 @@ class Task(Runnable):
         """
 
         output = {OUTPUT_KEY: output}
-        output_model = _create_pydantic_model_cls(
-            f'TaskOutput_{self.id}', self.output_config
+        output_model = create_model(
+            f'TaskOutput_{self.id}', **self._output_model_config
         )
 
         try:
@@ -337,7 +277,7 @@ class K:
         self.key = args
 
     def __iter__(self):
-        return iter(self)
+        return iter(self.key)
     
     def __bool__(self):
         return bool(self.key)
@@ -368,7 +308,7 @@ class _Ann:
         self.is_ctx = is_ctx
 
     def __getitem__(self, config):
-        ann = Ann(self.is_ctx)
+        ann = _Ann(self.is_ctx)
         if isinstance(config, tuple):
             ann.type = config[0]
             ann.key = config[1] if len(config) > 1 else K()

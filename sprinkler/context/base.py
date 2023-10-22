@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from typing import Any
-from collections import OrderedDict
-from collections.abc import Mapping
+from collections.abc import Iterable
 
 from sprinkler.constants import null
+from sprinkler.utils import recursive_search
 
 
 class Context:
@@ -25,7 +25,7 @@ class Context:
         self.history_context = {}
 
 
-    def query(self, queries: OrderedDict) -> dict[str, Any]:
+    def query(self, queries: Iterable) -> dict[str, Any]:
         """Retrieve arguments in context requested by queries
 
         result doesn't include value which doesn't exist in context
@@ -39,18 +39,16 @@ class Context:
         """
         context = {}
 
-        for param, config in queries.items():
-            if not config.is_ctx:
-                continue
+        for query in queries:
 
-            result = _recursive_search(config.key, self.history_context)
+            result = recursive_search(query, self.history_context)
 
             if result is not null:
-                context[param] = result
+                context[query] = result
             else:
-                result = _recursive_search(config.key, self.global_context)
+                result = recursive_search(query, self.global_context)
                 if result is not null:
-                    context[param] = result
+                    context[query] = result
 
         return context
 
@@ -83,16 +81,6 @@ class Context:
         self.history_context.update(context.history_context)
 
 
-    def _recursive_search(self, key: tuple, target: Mapping) -> Any:
-        for key_ in key:
-            try:
-                target = target[key_]
-            except:
-                return null
-
-        return target
-
-
     def __str__(self) -> str:
         """Get all values from context
 
@@ -104,13 +92,3 @@ class Context:
         return (f'Global Context: {self.global_context}\n'
                 + f'History Context: {self.history_context}\n'
                 + f'Output: {self.output}\n')
-
-
-def _recursive_search(key: tuple, target: Mapping) -> Any:
-    for key_ in key:
-        try:
-            target = target[key_]
-        except:
-            return null
-
-    return target
