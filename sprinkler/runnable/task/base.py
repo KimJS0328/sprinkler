@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Callable, Any, Generator, get_type_hints
-from inspect import signature, Parameter, iscoroutinefunction
+from inspect import Parameter, iscoroutinefunction, Signature
 from collections import OrderedDict
 from itertools import chain
 from concurrent.futures import ThreadPoolExecutor
@@ -60,20 +60,23 @@ class Task(Runnable):
         if not callable(self.operation):
             raise TypeError(f'Task {self.id}: operation must be callable.')
 
-        params = signature(self.operation).parameters
-        anns = get_type_hints(self.operation)
+        signature = Signature.from_callable(self.operation)
 
-        self._set_input_config(params, anns)
-        self._set_output_config(anns)
+        self._set_input_config(signature.parameters)
+        self._set_output_config(signature.return_annotation)
 
 
-    def _set_input_config(self, params: OrderedDict[Parameter], anns: dict[str, Any]):
+    def _set_input_config(self, params: OrderedDict[str, Parameter]):
         self._input_model_config = {}
         self._param_with_key = {}
         self._ctx_with_key = {}
 
         for param in params.values():
-            config = anns.get(param.name, Any)
+            config = (
+                param.annotation
+                if param.annotation is not Signature.empty
+                else Any
+            )
 
             if not isinstance(config, _Ann):
                 config = Ann[config]
@@ -98,8 +101,12 @@ class Task(Runnable):
                     self._param_with_key[config.key] = [param.name]
 
 
-    def _set_output_config(self, anns: dict[str, any]):
-        config = anns.get('return', Any)
+    def _set_output_config(self, return_ann: Any):
+        config = (
+            return_ann 
+            if return_ann is not Signature.empty
+            else Any
+        )
 
         if not isinstance(config, _Ann):
             config = Ann[config]
