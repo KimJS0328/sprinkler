@@ -6,6 +6,7 @@ from collections import OrderedDict
 from itertools import chain
 from concurrent.futures import ThreadPoolExecutor
 import asyncio
+import copy
 
 from pydantic import create_model, ValidationError
 
@@ -20,6 +21,7 @@ class Task(Runnable):
 
     id: str = 'Unnamed Task'
     operation: Callable
+    context: Context
     _input_model_config: dict[str, tuple]
     _output_model_config: dict[str, tuple]
     _param_with_key: dict[K, list[str]]
@@ -29,7 +31,9 @@ class Task(Runnable):
     def __init__(
         self,
         id_: str,
-        operation: Callable | None = None
+        operation: Callable | None = None,
+        *,
+        context: dict[str, Any] | None = None
     ) -> None:
         """Initialize the task class.
 
@@ -43,6 +47,10 @@ class Task(Runnable):
         
         self.id = id_
         self.operation = operation
+        self.context = Context()
+
+        if context:
+            self.context.add_global(context)
 
         if self.operation is not None:
             self._set_operation_config()
@@ -75,8 +83,6 @@ class Task(Runnable):
 
             if param.default is not Parameter.empty:
                 config.default = param.default
-            else:
-                config.default = ...
 
             self._input_model_config[param.name] = (config.type, config.default)
 
@@ -119,13 +125,14 @@ class Task(Runnable):
         kwargs: dict
     ) -> Generator[dict[str, Any], Any, Any]:
         
-        context = context_
+        context_for_run = copy.deepcopy(self.context)
 
         if isinstance(context_, dict):
-            context = Context()
-            context.add_global(context_)
+            context_for_run.add_global(context_)
+        elif isinstance(context_, Context):
+            context_for_run.update(context_)
         
-        input_ = self._validate_input(context, args, kwargs)
+        input_ = self._validate_input(context_for_run, args, kwargs)
         output = yield input_
         output = self._validate_output(output)
 
