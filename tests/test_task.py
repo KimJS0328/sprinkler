@@ -89,44 +89,13 @@ def test_task_with_no_type_hint():
     assert output == 'sprinklersprinklersprinkler'
 
 
-def test_task_with_input_config():
-    def operation(a: str, b: str) -> str:
-        return a * b
-
-    task = Task(
-        'task1',
-        operation,
-        input_config={'b': int}
-    )
-
-    output = task.run('sprinkler', 3)
-
-    assert output == 'sprinklersprinklersprinkler'
-
-
-def test_task_with_output_config():
-    def operation(a: str, b: int) -> None:
-        return a * b
-
-    task = Task(
-        'test_task_with_output_config',
-        operation,
-        output_config=str
-    )
-
-    output = task.run('sprinkler', 3)
-
-    assert output == 'sprinklersprinklersprinkler'
-
-
 def test_task_type_error_with_none_input():
     def operation(a: str, b: int = 3) -> str:
         return a * b
 
     task = Task(
         'task1',
-        operation,
-        input_config={'a': str}
+        operation
     )
 
     with pytest.raises(Exception) as err:

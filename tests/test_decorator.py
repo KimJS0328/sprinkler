@@ -1,16 +1,11 @@
 from typing import List
 
-from sprinkler import Pipeline
-from sprinkler.decorator import Task
+from sprinkler import Pipeline, Task
 
 
 def test_task_decorator():
-    @Task(
-        'add', 
-        input_config={'a': int, 'b': int}, 
-        output_config=int
-    )
-    def add(a, b):
+    @Task('add')
+    def add(a: int, b: int) -> int:
         return a + b
     
     task = add

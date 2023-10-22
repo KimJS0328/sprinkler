@@ -4,6 +4,8 @@ from typing import Any
 from collections import OrderedDict
 from collections.abc import Mapping
 
+from sprinkler.constants import null
+
 
 class Context:
     """Context for task and pipline(process)
@@ -23,32 +25,34 @@ class Context:
         self.history_context = {}
 
 
-    def get_kwargs(self, query: OrderedDict[str, str]) -> dict[str, Any]:
-        """Retrieve arguments in context requested by query
+    def query(self, queries: OrderedDict) -> dict[str, Any]:
+        """Retrieve arguments in context requested by queries
 
         result doesn't include value which doesn't exist in context
         priority: history(if task_id is specifed) -> global
         
         Args:
-            query: key-value pair with {argument_name}: {source}
+            queries: key-value pair with {argument_name}: {source}
 
         Returns:
             Tuple of arguments (tuple) and keyword argument (dictionary)
         """
-        kwargs = {}
+        context = {}
 
-        for param, src in query.items():
-            # match argument with history context
-            result = self._recursive_search(src.split('.'), self.history_context)
+        for param, config in queries.items():
+            if not config.is_ctx:
+                continue
 
-            if result is not self.NotFound:
-                kwargs[param] = result
+            result = _recursive_search(config.key, self.history_context)
+
+            if result is not null:
+                context[param] = result
             else:
-                # match argument with global context
-                if src in self.global_context:
-                    kwargs[param] = self.global_context[src]
+                result = _recursive_search(config.key, self.global_context)
+                if result is not null:
+                    context[param] = result
 
-        return kwargs
+        return context
 
     
     def add_global(self, context: dict[str, Any]) -> None:
@@ -79,16 +83,12 @@ class Context:
         self.history_context.update(context.history_context)
 
 
-    class NotFound:
-        ...
-
-
-    def _recursive_search(self, path: list[str], target: Mapping) -> Any:
-        for key in path:
+    def _recursive_search(self, key: tuple, target: Mapping) -> Any:
+        for key_ in key:
             try:
-                target = target[key]
+                target = target[key_]
             except:
-                return self.NotFound
+                return null
 
         return target
 
@@ -104,3 +104,13 @@ class Context:
         return (f'Global Context: {self.global_context}\n'
                 + f'History Context: {self.history_context}\n'
                 + f'Output: {self.output}\n')
+
+
+def _recursive_search(key: tuple, target: Mapping) -> Any:
+    for key_ in key:
+        try:
+            target = target[key_]
+        except:
+            return null
+
+    return target

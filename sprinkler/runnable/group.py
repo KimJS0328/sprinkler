@@ -12,7 +12,7 @@ import asyncio
 
 from sprinkler.runnable.base import Runnable
 from sprinkler.context.base import Context
-from sprinkler import config
+from sprinkler.constants import OUTPUT_KEY, DEFAULT_GROUP_INPUT_KEY
 
 
 class Group(Runnable):
@@ -83,20 +83,20 @@ class Group(Runnable):
         elif isinstance(context_, Context):
             context_for_run.update(context_)
 
-        if config.OUTPUT_KEY in inputs:
-            inputs[config.DEFAULT_GROUP_INPUT_KEY] = inputs[config.OUTPUT_KEY]
-            del inputs[config.OUTPUT_KEY]
+        if OUTPUT_KEY in inputs:
+            inputs[DEFAULT_GROUP_INPUT_KEY] = inputs[OUTPUT_KEY]
+            del inputs[OUTPUT_KEY]
 
         for runnable in self.members:
-            input_ = (
-                inputs.get(runnable.id) 
-                or inputs.get(config.DEFAULT_GROUP_INPUT_KEY) 
-                or None
+            input_ = inputs.get(
+                runnable.id, 
+                inputs.get(DEFAULT_GROUP_INPUT_KEY, None)
             )
+
             func = partial(
                 getattr(runnable, method_name), 
                 copy.deepcopy(context_for_run),
-                **{config.OUTPUT_KEY: input_}
+                **{OUTPUT_KEY: input_}
             )
 
             yield runnable.id, func
