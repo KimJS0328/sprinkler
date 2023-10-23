@@ -15,11 +15,7 @@ Icon
 ._*
 
 # VScode Settings
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+.vscode/
 
 # Files that might appear in the root of a volume
 .DocumentRevisions-V100

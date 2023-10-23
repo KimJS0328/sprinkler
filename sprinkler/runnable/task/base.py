@@ -72,16 +72,9 @@ class Task(Runnable):
         self._ctx_with_key = {}
 
         for param in params.values():
-            config = (
-                param.annotation
-                if param.annotation is not Signature.empty
-                else Any
+            config = self._parse_annotation(
+                param.name, param.annotation
             )
-            if not isinstance(config, _Ann):
-                config = Ann[config]
-
-            if config.is_ctx and not config.key:
-                config.key = K(param.name)
 
             if param.default is not Parameter.empty:
                 config.default = param.default
@@ -101,18 +94,27 @@ class Task(Runnable):
 
 
     def _set_output_config(self, return_ann: Any):
-        config = (
-            return_ann 
-            if return_ann is not Signature.empty
-            else Any
+        config = self._parse_annotation(
+            '', return_ann
         )
-
-        if not isinstance(config, _Ann):
-            config = Ann[config]
         
         self._output_model_config = {
             OUTPUT_KEY: (config.type, ...)
         }
+
+
+    def _parse_annotation(self, param_name: str, ann: Any) -> Any:
+        ann = ann if ann is not Parameter.empty else Any
+
+        if isinstance(ann, str):
+            ann = eval(ann, self.operation.__globals__)
+        
+        if not isinstance(ann, _Ann):
+            ann = Ann[ann]
+        if ann.is_ctx and not ann.key:
+            ann.key = K(param_name)
+
+        return ann
 
 
     def __call__(self, *args, **kwargs) -> Any:
@@ -250,9 +252,9 @@ class Task(Runnable):
         arguments = self._bind_input(context, args, kwargs)
        
         input_model = create_model(
-            f'TaskInput_{self.id}', 
-            model_config = ConfigDict(arbitrary_types_allowed=True), 
-            **self._input_model_config
+            f'TaskInput_{self.id}',
+            **self._input_model_config,
+            __config__=ConfigDict(arbitrary_types_allowed=True)
         )
 
         try:
@@ -273,9 +275,9 @@ class Task(Runnable):
 
         output = {OUTPUT_KEY: output}
         output_model = create_model(
-            f'TaskOutput_{self.id}', 
-            model_config = ConfigDict(arbitrary_types_allowed=True), 
-            **self._output_model_config
+            f'TaskOutput_{self.id}',
+            **self._output_model_config,
+            __config__=ConfigDict(arbitrary_types_allowed=True)
         )
 
         try:
