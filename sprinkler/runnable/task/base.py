@@ -73,12 +73,7 @@ class Task(Runnable):
 
         for param in params.values():
             config = self._parse_annotation(
-                param.name,
-                (
-                    param.annotation
-                    if param.annotation is not Signature.empty
-                    else Any
-                )
+                param.name, param.annotation
             )
 
             if param.default is not Parameter.empty:
@@ -100,12 +95,7 @@ class Task(Runnable):
 
     def _set_output_config(self, return_ann: Any):
         config = self._parse_annotation(
-            '',
-            (
-                return_ann 
-                if return_ann is not Signature.empty
-                else Any
-            )
+            '', return_ann
         )
         
         self._output_model_config = {
@@ -114,6 +104,8 @@ class Task(Runnable):
 
 
     def _parse_annotation(self, param_name: str, ann: Any) -> Any:
+        ann = ann if ann is not Parameter.empty else Any
+
         if isinstance(ann, str):
             ann = eval(ann, self.operation.__globals__)
         
