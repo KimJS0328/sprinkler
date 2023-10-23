@@ -1,17 +1,18 @@
-from __future__ import annotations
+
 
 from typing import Any, List, Dict, Union
 import json
 
 import openai
 
-from sprinkler import config
+from sprinkler import constants
+from sprinkler import Ann, Ctx
 from sprinkler.prompt_template import PromptTemplate
 
 
 def construct_messages(
-    messages: List[Union[str, PromptTemplate]],
-    input_variables: Dict[str, Any]
+    messages: Ctx[List[Union[str, PromptTemplate]]],
+    input_variables: Ann[Dict[str, Any]]
 ) -> List[Dict [str, str]]:
     for i, message in enumerate(messages):
         if isinstance(message, str):
@@ -25,22 +26,22 @@ def construct_messages(
 
 
 def chat_completion(
-    messages: List[Dict[str, Any]],
-    whole_output: bool = False,
+    messages: Ann[List[Dict[str, Any]]],
+    whole_output: Ctx[bool] = False,
     *,
-    model: str = config.DEFAULT_OPENAI_MODEL,
-    retry_count: int = 1,
-    frequency_penalty: float = None,
-    function_call: Union[str, dict] = None,
-    functions: List[Dict] = None,
-    logit_bias: Dict[int, float] = None,
-    max_tokens: int = None,
-    n: int = None,
-    presence_penalty = None,
-    stop: Union[str, List] = None,
-    temperature: float = None,
-    top_p: float= None,
-    user: str = None 
+    model: Ctx[str] = constants.DEFAULT_OPENAI_MODEL,
+    retry_count: Ctx[int] = 1,
+    frequency_penalty: Ctx[float] = None,
+    function_call: Ctx[Union[str, dict]] = None,
+    functions: Ctx[List[Dict]] = None,
+    logit_bias: Ctx[Dict[int, float]] = None,
+    max_tokens: Ctx[int] = None,
+    n: Ctx[int] = None,
+    presence_penalty: Ctx[float] = None,
+    stop: Ctx[Union[str, List]] = None,
+    temperature: Ctx[float] = None,
+    top_p: Ctx[float]= None,
+    user: Ctx[str] = None 
 ) -> Union[Dict, List, str]:
 
     kwargs = {

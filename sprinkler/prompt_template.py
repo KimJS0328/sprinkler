@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from pydantic import create_model, BaseModel, ValidationError
+from pydantic import create_model, ValidationError
 
 
 class PromptTemplate:

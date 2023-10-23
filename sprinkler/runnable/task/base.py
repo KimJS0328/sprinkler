@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Any, Generator, get_type_hints
+from typing import Callable, Any, Generator
 from inspect import Parameter, iscoroutinefunction, Signature
 from collections import OrderedDict
 from itertools import chain
@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 import asyncio
 import copy
 
-from pydantic import create_model, ValidationError
+from pydantic import create_model, ValidationError, ConfigDict
 
 from sprinkler.constants import OUTPUT_KEY, null
 from sprinkler.utils import recursive_search, distribute_value
@@ -77,7 +77,6 @@ class Task(Runnable):
                 if param.annotation is not Signature.empty
                 else Any
             )
-
             if not isinstance(config, _Ann):
                 config = Ann[config]
 
@@ -249,8 +248,11 @@ class Task(Runnable):
             keyword arguments of validated arguments
         """
         arguments = self._bind_input(context, args, kwargs)
+       
         input_model = create_model(
-            f'TaskInput_{self.id}', **self._input_model_config
+            f'TaskInput_{self.id}', 
+            model_config = ConfigDict(arbitrary_types_allowed=True), 
+            **self._input_model_config
         )
 
         try:
@@ -271,7 +273,9 @@ class Task(Runnable):
 
         output = {OUTPUT_KEY: output}
         output_model = create_model(
-            f'TaskOutput_{self.id}', **self._output_model_config
+            f'TaskOutput_{self.id}', 
+            model_config = ConfigDict(arbitrary_types_allowed=True), 
+            **self._output_model_config
         )
 
         try:
@@ -323,6 +327,7 @@ class _Ann:
 
     def __getitem__(self, config):
         ann = _Ann(self.is_ctx)
+
         if isinstance(config, tuple):
             ann.type = config[0]
             ann.key = config[1] if len(config) > 1 else K()

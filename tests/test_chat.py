@@ -83,8 +83,7 @@ def test_pipeline_prompt_chat():
     
     task_chat = ChatCompletionTask('chat',
                                    {'temperature': 0.8,
-                                    'retry_count': 2},
-                                    input_config={'messages': {'src': 'prompt'}})
+                                    'retry_count': 2})
     
     pipeline = Pipeline('pipe')
     pipeline.add(task_prompt)

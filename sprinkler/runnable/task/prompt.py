@@ -12,22 +12,8 @@ class PromptTask(Task):
         self, 
         id_: str,
         context_: Dict[str | Any] | None = None,
-        *,
-        input_config: Dict[str, Dict] = {}
     ) -> None:
-        
-        if 'messages' in input_config:
-            input_config['messages']['type'] = List[Any]
-        else:
-            input_config['messages'] = {'type': List[Any]}
-
-        if 'input_variables' in input_config:
-            input_config['input_variables']['type'] = Dict[str, Any]
-        else:
-            input_config['input_variables'] = {'type': Dict[str, Any]}
 
         super().__init__(id_, 
                         construct_messages,
-                        context_,
-                        input_config=input_config,
-                        output_config=List[Dict [str, str]])
+                        context=context_)
