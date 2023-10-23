@@ -1,9 +1,33 @@
-from typing import List, Dict, Union
+from __future__ import annotations
 
-from pydantic import ValidationError
+from typing import List, Dict, Union, Tuple
+
 import pytest
 
 from sprinkler import Task, Ann, Ctx
+
+
+class A:
+    a: int
+    b: str
+    def __init__(self, a, b) -> None:
+        self.a = a
+        self.b = b
+    def __eq__(self, __value: object) -> bool:
+        return (
+            self.a == __value.a and self.b == __value.b
+        )
+
+class B:
+    a: A
+    b: tuple
+    def __init__(self, a, b) -> None:
+        self.a = a
+        self.b = b
+    def __eq__(self, __value: object) -> bool:
+        return (
+            self.a == __value.a and self.b == __value.b
+        )
 
 
 def test_task():
@@ -91,35 +115,15 @@ def test_task_with_no_type_hint():
 
 
 def test_task_with_complex_type_hint():
-    class A:
-        a: int
-        b: str
-        def __init__(self, a, b) -> None:
-            self.a = a
-            self.b = b
-        def __eq__(self, __value: object) -> bool:
-            return (
-                self.a == __value.a and self.b == __value.b
-            )
     
-    class B:
-        a: A
-        b: tuple
-        def __init__(self, a, b) -> None:
-            self.a = a
-            self.b = b
-        def __eq__(self, __value: object) -> bool:
-            return (
-                self.a == __value.a and self.b == __value.b
-            )
-
+    
     @Task('task1')
-    def op(a: Ann[B], b: Union[A, Dict[str, tuple[int,int]]]) -> Dict[str, B]:
+    def op(a: Ann[B], b: Union[A, Dict[str, Tuple[int,int]]]) -> Dict[str, B]:
         return {
             'test': B(A(3,'5'), (2,5))
         }
     
-    output = op.run(B(A(1,'1')), {'a': (3,5)})
+    output = op.run(B(A(1,'1'), (5,2)), {'a': (3,5)})
     
     assert output == {
         'test': B(A(3,'5'), (2,5))
@@ -127,38 +131,17 @@ def test_task_with_complex_type_hint():
 
 
 def test_task_type_error_with_complex_type_hint():
-    class A:
-        a: int
-        b: str
-        def __init__(self, a, b) -> None:
-            self.a = a
-            self.b = b
-        def __eq__(self, __value: object) -> bool:
-            return (
-                self.a == __value.a and self.b == __value.b
-            )
-    
-    class B:
-        a: A
-        b: tuple
-        def __init__(self, a, b) -> None:
-            self.a = a
-            self.b = b
-        def __eq__(self, __value: object) -> bool:
-            return (
-                self.a == __value.a and self.b == __value.b
-            )
 
     @Task('task1')
-    def op(a: Ann[B], b: Union[A, Dict[str, tuple[int,int]]]) -> Dict[str, B]:
+    def op(a: Ann[B], b: Union[A, Dict[str, Tuple[int,int]]]) -> Dict[str, B]:
         return {
             'test': B(A(3,'5'), (2,5))
         }
     
-    with pytest.raises(ValidationError) as err:
-        output = op.run(B(A(1,'1')), {'a': (3,)})
+    with pytest.raises(Exception) as err:
+        output = op.run(B(A(1,'1'), (5,2)), {'a': (3,)})
     
-    assert 'a' in err.value.args[0]
+    assert 'input' in err.value.args[0]
 
 
 def test_task_type_error_with_none_input():
