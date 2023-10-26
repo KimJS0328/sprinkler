@@ -1,8 +1,33 @@
-from typing import List, Dict
+from __future__ import annotations
+
+from typing import List, Dict, Union, Tuple
 
 import pytest
 
-from sprinkler import Task
+from sprinkler import Task, Ann, Ctx
+
+
+class A:
+    a: int
+    b: str
+    def __init__(self, a, b) -> None:
+        self.a = a
+        self.b = b
+    def __eq__(self, __value: object) -> bool:
+        return (
+            self.a == __value.a and self.b == __value.b
+        )
+
+class B:
+    a: A
+    b: tuple
+    def __init__(self, a, b) -> None:
+        self.a = a
+        self.b = b
+    def __eq__(self, __value: object) -> bool:
+        return (
+            self.a == __value.a and self.b == __value.b
+        )
 
 
 def test_task():
@@ -89,34 +114,34 @@ def test_task_with_no_type_hint():
     assert output == 'sprinklersprinklersprinkler'
 
 
-def test_task_with_input_config():
-    def operation(a: str, b: str) -> str:
-        return a * b
+def test_task_with_complex_type_hint():
+    
+    
+    @Task('task1')
+    def op(a: Ann[B], b: Union[A, Dict[str, Tuple[int,int]]]) -> Dict[str, B]:
+        return {
+            'test': B(A(3,'5'), (2,5))
+        }
+    
+    output = op.run(B(A(1,'1'), (5,2)), {'a': (3,5)})
+    
+    assert output == {
+        'test': B(A(3,'5'), (2,5))
+    }
 
-    task = Task(
-        'task1',
-        operation,
-        input_config={'b': int}
-    )
 
-    output = task.run('sprinkler', 3)
+def test_task_type_error_with_complex_type_hint():
 
-    assert output == 'sprinklersprinklersprinkler'
-
-
-def test_task_with_output_config():
-    def operation(a: str, b: int) -> None:
-        return a * b
-
-    task = Task(
-        'test_task_with_output_config',
-        operation,
-        output_config=str
-    )
-
-    output = task.run('sprinkler', 3)
-
-    assert output == 'sprinklersprinklersprinkler'
+    @Task('task1')
+    def op(a: Ann[B], b: Union[A, Dict[str, Tuple[int,int]]]) -> Dict[str, B]:
+        return {
+            'test': B(A(3,'5'), (2,5))
+        }
+    
+    with pytest.raises(Exception) as err:
+        output = op.run(B(A(1,'1'), (5,2)), {'a': (3,)})
+    
+    assert 'input' in err.value.args[0]
 
 
 def test_task_type_error_with_none_input():
@@ -125,8 +150,7 @@ def test_task_type_error_with_none_input():
 
     task = Task(
         'task1',
-        operation,
-        input_config={'a': str}
+        operation
     )
 
     with pytest.raises(Exception) as err:

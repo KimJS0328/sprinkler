@@ -5,7 +5,7 @@ import copy
 
 from sprinkler.runnable.base import Runnable
 from sprinkler.context import Context
-from sprinkler import config
+from sprinkler.constants import OUTPUT_KEY
 
 
 class Pipeline(Runnable):
@@ -43,20 +43,23 @@ class Pipeline(Runnable):
             self.context.add_global(context)
         
 
-    def add(self, runnable: Runnable) -> None:
+    def add(self, *args: Runnable) -> Pipeline:
         """Add the `Runnable` instance to pipeline
 
         Args:
             runnable: the Runnable instance
         """
-        if not isinstance(runnable, Runnable):
-            raise TypeError('Given task parameter is not `Runnable` instance')
+        for runnable in args:
+            if not isinstance(runnable, Runnable):
+                raise TypeError('Given task parameter is not `Runnable` instance')
+            
+            if runnable.id in self.member_id_set:
+                raise Exception(f'`Runnable` \'{runnable.id}\' is already exsists')
+            
+            self.members.append(runnable)
+            self.member_id_set.add(runnable.id)
         
-        if runnable.id in self.member_id_set:
-            raise Exception(f'`Runnable` \'{runnable.id}\' is already exsists')
-        
-        self.members.append(runnable)
-        self.member_id_set.add(runnable.id)
+        return self
     
 
     def _generator_for_run(
@@ -85,7 +88,7 @@ class Pipeline(Runnable):
         for runnable in self.members[1:]:
             func = getattr(runnable, method_name)
             output = yield func(
-                context_for_run, **{config.OUTPUT_KEY: output}
+                context_for_run, **{OUTPUT_KEY: output}
             )
             context_for_run.add_history(output, runnable.id)
 
@@ -102,7 +105,8 @@ class Pipeline(Runnable):
     
 
     def run_with_context(self, context_: dict[str, Any], *args, **kwargs) -> Any:
-        gen = self._generator_for_run(context_, args, kwargs, 'run_with_context')
+        gen = self._generator_for_run(
+            context_, args, kwargs, 'run_with_context')
         output = None
         
         while True:
@@ -125,7 +129,8 @@ class Pipeline(Runnable):
         **kwargs
     ) -> Any:
         
-        gen = self._generator_for_run(context_, args, kwargs, 'arun_with_context')
+        gen = self._generator_for_run(
+            context_, args, kwargs, 'arun_with_context')
         output = None
         
         while True:

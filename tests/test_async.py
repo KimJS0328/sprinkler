@@ -2,8 +2,7 @@ import asyncio
 
 import pytest
 
-from sprinkler.decorator import Task
-from sprinkler import Pipeline, Group
+from sprinkler import Pipeline, Group, Task, Ann
 
 def test_async_operation():
     @Task('task1')
@@ -37,11 +36,6 @@ async def test_async_run_with_async_operation():
 
 @pytest.mark.asyncio
 async def test_async_pipeline_of_group():
-
-    p = Pipeline('p')
-    a = Group('a')
-    b = Group('b')
-
     @Task('t1')
     async def t1(a: int, b: int) -> int:
         return a + b
@@ -51,21 +45,17 @@ async def test_async_pipeline_of_group():
         return a + b
     
     @Task('t3')
-    async def t3(t2: str, t1: int) -> str:
-        return t2 * t1
+    async def t3(a: Ann[str, 't2'], b: Ann[int, 't1']) -> str:
+        return a * b
     
     @Task('t4')
-    async def t4(t2: str, t1: int) -> str:
-        return f'{t2}-{t1}'
+    async def t4(a: Ann[str, 't2'], b: Ann[int, 't1']) -> str:
+        return f'{a}-{b}'
     
-    a.add(t1)
-    a.add(t2)
-
-    b.add(t3)
-    b.add(t4)
-
-    p.add(a)
-    p.add(b)
+    p = Pipeline('p').add(
+        Group('a').add(t1, t2),
+        Group('b').add(t3, t4)
+    )
 
     output = await p.arun(t1=(1,2), t2=('hello', 'world'))
 

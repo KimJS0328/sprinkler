@@ -1,128 +1,129 @@
 from __future__ import annotations
 
-from typing import Callable, Any, Generator, get_type_hints
-from inspect import signature, Parameter, iscoroutinefunction
+from typing import Callable, Any, Generator
+from inspect import Parameter, iscoroutinefunction, Signature
 from collections import OrderedDict
+from itertools import chain
 from concurrent.futures import ThreadPoolExecutor
 import asyncio
+import copy
 
-from pydantic import create_model, BaseModel, ValidationError
+from pydantic import create_model, ValidationError, ConfigDict
 
-from sprinkler import config
+from sprinkler.constants import OUTPUT_KEY, null
+from sprinkler.utils import recursive_search, distribute_value
 from sprinkler.runnable.base import Runnable
 from sprinkler.context.base import Context
-
-
-# def _none_if_empty(value: Any) -> Any:
-#     return None if value is Parameter.empty else value
-
-
-def _create_input_config_and_query(
-    operation: Callable,
-    user_config: dict
-) -> tuple[dict, dict]:
-    """
-    """
-    
-    parameters = signature(operation).parameters
-    annotations_ = get_type_hints(operation)
-
-    input_config = {} # {argument name}: {meta data of argument ex. type, source, ...} 
-    input_query = OrderedDict() # {argument name}: {source}
-
-    for param in parameters.values():
-
-        param_config = user_config.get(param.name, {})
-
-        if not isinstance(param_config, dict):
-            param_config = {'type': param_config}
-
-        # create the base of input_config
-        input_config[param.name] = {
-            'type': param_config.get('type', annotations_.get(param.name, Any)),
-            'src': param_config.get('src', param.name)
-        }
-
-        default = param_config.get('default', param.default)
-
-        if default is not Parameter.empty:
-            input_config[param.name]['default'] = default
-
-        input_query[param.name] = input_config[param.name]['src']
-
-    return input_config, input_query
-
-
-def _create_output_config(
-    operation: Callable,
-    user_config: Any
-) -> dict:
-    """
-    """
-    annotations_ = get_type_hints(operation)
-
-    return {
-        config.OUTPUT_KEY: {
-            'type': user_config or annotations_.get('return', Any)
-        }
-    }
-
-
-def _create_pydantic_model_cls(name: str, config: dict):
-    return create_model(name, **{
-        name: (field['type'], field.get('default', ...))
-        for name, field in config.items()
-    })
 
 
 class Task(Runnable):
     """The unit of operation in pipeline."""
 
     id: str = 'Unnamed Task'
-    input_config: dict
-    output_config: dict
-    _input_query: OrderedDict[str, str]
+    operation: Callable
+    context: Context
+    _input_model_config: dict[str, tuple]
+    _output_model_config: dict[str, tuple]
+    _param_with_key: dict[K, list[str]]
+    _ctx_with_key: dict[K, list[str]]
     
 
     def __init__(
         self,
         id_: str,
-        operation: Callable,
+        operation: Callable | None = None,
         *,
-        input_config: dict[str, Any | dict[str, Any]] | None = None,
-        output_config: dict[str, Any] | Any | None = None,
+        context: dict[str, Any] | None = None
     ) -> None:
         """Initialize the task class.
 
         Args:
             id: A task identifier. It should be following the python variable naming rule.
             operation: A callbale object defining the operation of task.
-            input_config: An optional extra config for the input of the operation.
-            output_config: An optional extra config for the output of the operation.
         """
         
         if not isinstance(id_, str):
             raise TypeError(f'id must be str.')
         
         self.id = id_
-
-        if not callable(operation):
-            raise TypeError(f'Task {self.id}: operation must be callable.')
-        
         self.operation = operation
+        self.context = Context()
 
-        self.input_config, self._input_query = _create_input_config_and_query(
-            self.operation, 
-            input_config or {}
-        )
+        if context:
+            self.context.add_global(context)
 
-        self.output_config = _create_output_config(
-            self.operation, output_config
+        if self.operation is not None:
+            self._set_operation_config()
+
+
+    def _set_operation_config(self):
+        if not callable(self.operation):
+            raise TypeError(f'Task {self.id}: operation must be callable.')
+
+        signature = Signature.from_callable(self.operation)
+
+        self._set_input_config(signature.parameters)
+        self._set_output_config(signature.return_annotation)
+
+
+    def _set_input_config(self, params: OrderedDict[str, Parameter]):
+        self._input_model_config = {}
+        self._param_with_key = {}
+        self._ctx_with_key = {}
+
+        for param in params.values():
+            config = self._parse_annotation(
+                param.name, param.annotation
+            )
+
+            if param.default is not Parameter.empty:
+                config.default = param.default
+
+            self._input_model_config[param.name] = (config.type, config.default)
+
+            if config.is_ctx:
+                if config.key in self._ctx_with_key:
+                    self._ctx_with_key[config.key].append(param.name)
+                else:
+                    self._ctx_with_key[config.key] = [param.name]
+            else:
+                if config.key in self._param_with_key:
+                    self._param_with_key[config.key].append(param.name)
+                else:
+                    self._param_with_key[config.key] = [param.name]
+
+
+    def _set_output_config(self, return_ann: Any):
+        config = self._parse_annotation(
+            '', return_ann
         )
+        
+        self._output_model_config = {
+            OUTPUT_KEY: (config.type, ...)
+        }
+
+
+    def _parse_annotation(self, param_name: str, ann: Any) -> Any:
+        ann = ann if ann is not Parameter.empty else Any
+
+        if isinstance(ann, str):
+            ann = eval(ann, self.operation.__globals__)
+        
+        if not isinstance(ann, _Ann):
+            ann = Ann[ann]
+        if ann.is_ctx and not ann.key:
+            ann.key = K(param_name)
+
+        return ann
 
 
     def __call__(self, *args, **kwargs) -> Any:
-        return self.run(*args, **kwargs)
+        if self.operation is None:
+            self.operation = args[0]
+            self._set_operation_config()
+            return self
+        else:
+            return self.run(*args, **kwargs)
     
 
     def _generator_for_run(
@@ -132,18 +133,19 @@ class Task(Runnable):
         kwargs: dict
     ) -> Generator[dict[str, Any], Any, Any]:
         
-        context = context_
+        context_for_run = copy.deepcopy(self.context)
 
         if isinstance(context_, dict):
-            context = Context()
-            context.add_global(context_)
+            context_for_run.add_global(context_)
+        elif isinstance(context_, Context):
+            context_for_run.update(context_)
         
-        input_ = self._validate_input(context, args, kwargs)
+        input_ = self._validate_input(context_for_run, args, kwargs)
         output = yield input_
         output = self._validate_output(output)
 
         return output
-
+    
 
     def run(self, *args, **kwargs) -> Any:
         """Run the task synchronously."""
@@ -212,43 +214,33 @@ class Task(Runnable):
 
 
     def _bind_input(self, context: Context, args: tuple, kwargs: dict) -> dict[str, Any]:
-        arguments = context.get_kwargs(self._input_query)
-        arguments.update(kwargs)
-        arguments = {arg: val for arg, val in arguments.items() if arg in self._input_query}
+        ctx = context.query(self._ctx_with_key.keys())
+        input_ = {}
 
-        remaining_params = [param for param in self._input_query if param not in arguments]
-        
-        if not remaining_params:
-            return arguments
+        for key, value in ctx.items():
+            input_.update(distribute_value(
+                self._ctx_with_key[key],
+                value
+            ))
 
-        if config.OUTPUT_KEY in kwargs:
-            input_ = kwargs[config.OUTPUT_KEY]
-
-            if len(remaining_params) == 1:
-                arguments[remaining_params[0]] = input_
-            
-            elif all(
-                hasattr(input_, attr) 
-                for attr in ('keys', '__getitem__', '__contains__')
-            ):
-                for param in remaining_params:
-                    if param in input_:
-                        arguments[param] = input_[param]
-
-            elif all(
-                hasattr(input_, attr) 
-                for attr in ('__iter__', '__len__')
-            ):
-                for param, val in zip(remaining_params, input_):
-                    arguments[param] = val
+        if OUTPUT_KEY in kwargs:
+            target = kwargs[OUTPUT_KEY]
+            for key, params in self._param_with_key.items():
+                result = recursive_search(key, target) if key else target
+                if result is not null:
+                    input_.update(distribute_value(
+                        params, result
+                    ))
 
         else:
-            input_ = args
+            params = chain.from_iterable(self._param_with_key.values())
 
-            for param, val in zip(remaining_params, input_):
-                arguments[param] = val
+            for param, arg in zip(params, args):
+                input_[param] = arg
+                
+            input_.update(kwargs)
 
-        return arguments
+        return input_
 
 
     def _validate_input(self, context: Context, args: tuple, kwargs: dict) -> dict[str, Any]:
@@ -258,8 +250,10 @@ class Task(Runnable):
             keyword arguments of validated arguments
         """
         arguments = self._bind_input(context, args, kwargs)
-        input_model = _create_pydantic_model_cls(
-            f'TaskInput_{self.id}', self.input_config
+        input_model = create_model(
+            f'TaskInput_{self.id}',
+            **self._input_model_config,
+            __config__=ConfigDict(arbitrary_types_allowed=True)
         )
 
         try:
@@ -278,15 +272,75 @@ class Task(Runnable):
             validated output
         """
 
-        output = {config.OUTPUT_KEY: output}
-        output_model = _create_pydantic_model_cls(
-            f'TaskOutput_{self.id}', self.output_config
+        output = {OUTPUT_KEY: output}
+        output_model = create_model(
+            f'TaskOutput_{self.id}',
+            **self._output_model_config,
+            __config__=ConfigDict(arbitrary_types_allowed=True)
         )
 
         try:
             return (output_model
                 .model_validate(output)
-                .model_dump()[config.OUTPUT_KEY])
+                .model_dump()[OUTPUT_KEY])
         
         except ValidationError as e:
             raise Exception(f'Task {self.id} output: {e}')
+
+
+class K:
+
+    key: tuple
+
+    def __init__(self, *args) -> None:
+        self.key = args
+
+    def __iter__(self):
+        return iter(self.key)
+    
+    def __bool__(self):
+        return bool(self.key)
+    
+    def __eq__(self, __value: object) -> bool:
+        return self.key == __value.key
+    
+    def __hash__(self) -> int:
+        return hash(self.key)
+
+
+class _Ann:
+
+    type: Any = null
+    key: Any = null
+    default: Any = ...
+    is_ctx: bool
+
+    def __eq__(self, __value: object) -> bool:
+        return (
+            self.type == __value.type
+            and self.key == __value.key
+            and self.default == __value.default
+            and self.is_ctx == __value.is_ctx
+        )
+
+    def __init__(self, is_ctx) -> None:
+        self.is_ctx = is_ctx
+
+    def __getitem__(self, config):
+        ann = _Ann(self.is_ctx)
+        if isinstance(config, tuple):
+            ann.type = config[0]
+            ann.key = config[1] if len(config) > 1 else K()
+        else:
+            ann.type = config
+            ann.key = K()
+
+        if ann.type is None:
+            ann.type = type(None)
+        if not isinstance(ann.key, K):
+            ann.key = K(ann.key)
+
+        return ann
+    
+Ann = _Ann(False)
+Ctx = _Ann(True)

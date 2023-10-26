@@ -1,4 +1,4 @@
-from sprinkler import Task, Pipeline
+from sprinkler import Task, Pipeline, Ctx
 
 
 def test_pipeline():
@@ -27,7 +27,7 @@ def test_pipeline():
 
 
 def test_pipeline_with_args():
-    def operation1(a, b):
+    def operation1(a: int, b: int) -> tuple:
         return a * 3, b * 3
 
     def operation2(a: int, b: int) -> int:
@@ -35,9 +35,7 @@ def test_pipeline_with_args():
 
     task1 = Task(
         'task1', 
-        operation1, 
-        input_config={'a': int, 'b': int},
-        output_config=tuple
+        operation1
     )
 
     task2 = Task(
@@ -54,7 +52,7 @@ def test_pipeline_with_args():
 
 
 def test_pipeline_with_default_args():
-    def operation1(a, b = 6):
+    def operation1(a: int, b: int = 6) -> tuple:
         return a * 3, b * 3
 
     def operation2(a: int, b: int) -> int:
@@ -62,9 +60,7 @@ def test_pipeline_with_default_args():
 
     task1 = Task(
         'task1', 
-        operation1, 
-        input_config={'a': int, 'b': int},
-        output_config=tuple
+        operation1
     )
 
     task2 = Task(
@@ -81,7 +77,7 @@ def test_pipeline_with_default_args():
 
 
 def test_pipeline_with_default_args2():
-    def operation1(a, b, c = 6):
+    def operation1(a: int, b: int, c: int = 6):
         return a * 3, b * 3, c * 3
 
     def operation2(a: int, b: int) -> int:
@@ -89,9 +85,7 @@ def test_pipeline_with_default_args2():
 
     task1 = Task(
         'task1', 
-        operation1, 
-        input_config={'a': int, 'b': int},
-        output_config=tuple
+        operation1
     )
 
     task2 = Task(
@@ -114,7 +108,7 @@ def test_pipeline_with_history():
     def operation2():
         pass
 
-    def operation3(a):
+    def operation3(a: Ctx[int, 'task1']):
         return a + 5
 
     task1 = Task(
@@ -124,14 +118,12 @@ def test_pipeline_with_history():
 
     task2 = Task(
         'task2',
-        operation2,
-        output_config=None
+        operation2
     )
 
     task3 = Task(
         'task3',
-        operation3,
-        input_config={'a': {'src': 'task1'}}
+        operation3
     )
 
     p = Pipeline('pipeline')
@@ -145,13 +137,13 @@ def test_pipeline_with_history():
 
 
 def test_pipeline_with_context1():
-    def operation1(a, b):
+    def operation1(a, b: Ctx[int]):
         return a * b
 
     def operation2():
         pass
 
-    def operation3(a):
+    def operation3(a: Ctx[int, 'task1']):
         return a + 5
 
     task1 = Task(
@@ -161,14 +153,12 @@ def test_pipeline_with_context1():
 
     task2 = Task(
         'task2',
-        operation2,
-        output_config=None
+        operation2
     )
 
     task3 = Task(
         'task3',
-        operation3,
-        input_config={'a': {'src': 'task1'}}
+        operation3
     )
 
     p = Pipeline('pipeline', context={'b': 10})
@@ -182,13 +172,13 @@ def test_pipeline_with_context1():
 
 
 def test_pipeline_with_context2():
-    def operation1(a, b):
+    def operation1(a, b: Ctx[int]):
         return a * b
 
     def operation2():
         pass
 
-    def operation3(a, b):
+    def operation3(a: Ctx[int, 'task1'], b: Ctx[int]):
         return a + 5 * b
 
     task1 = Task(
@@ -203,14 +193,12 @@ def test_pipeline_with_context2():
 
     task3 = Task(
         'task3',
-        operation3,
-        input_config={'a': {'src': 'task1'}}
+        operation3
     )
 
-    p = Pipeline('pipeline', context={'b': 10})
-    p.add(task1)
-    p.add(task2)
-    p.add(task3)
+    p = Pipeline('pipeline', context={'b': 10}).add(
+        task1, task2, task3
+    )
 
     output = p.run(2)
 

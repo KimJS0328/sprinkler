@@ -12,7 +12,7 @@ import asyncio
 
 from sprinkler.runnable.base import Runnable
 from sprinkler.context.base import Context
-from sprinkler import config
+from sprinkler.constants import OUTPUT_KEY, DEFAULT_GROUP_INPUT_KEY
 
 
 class Group(Runnable):
@@ -54,16 +54,19 @@ class Group(Runnable):
         self.executor_kwargs = executor_kwargs
 
 
-    def add(self, runnable: Runnable):
+    def add(self, *args: Runnable) -> Group:
         """Add new `Runnable` instance to this group"""
-        if not isinstance(runnable, Runnable):
-            raise TypeError('Given task parameter is not `Runnable` instance')
-        
-        if runnable.id in self.member_id_set:
-            raise Exception(f'`Runnable` \'{runnable.id}\' is already exsists')
-        
-        self.members.append(runnable)
-        self.member_id_set.add(runnable.id)
+        for runnable in args:
+            if not isinstance(runnable, Runnable):
+                raise TypeError('Given task parameter is not `Runnable` instance')
+            
+            if runnable.id in self.member_id_set:
+                raise Exception(f'`Runnable` \'{runnable.id}\' is already exsists')
+            
+            self.members.append(runnable)
+            self.member_id_set.add(runnable.id)
+
+        return self
 
 
     def _generator_for_run(
@@ -80,20 +83,20 @@ class Group(Runnable):
         elif isinstance(context_, Context):
             context_for_run.update(context_)
 
-        if config.OUTPUT_KEY in inputs:
-            inputs[config.DEFAULT_GROUP_INPUT_KEY] = inputs[config.OUTPUT_KEY]
-            del inputs[config.OUTPUT_KEY]
+        if OUTPUT_KEY in inputs:
+            inputs[DEFAULT_GROUP_INPUT_KEY] = inputs[OUTPUT_KEY]
+            del inputs[OUTPUT_KEY]
 
         for runnable in self.members:
-            input_ = (
-                inputs.get(runnable.id) 
-                or inputs.get(config.DEFAULT_GROUP_INPUT_KEY) 
-                or None
+            input_ = inputs.get(
+                runnable.id, 
+                inputs.get(DEFAULT_GROUP_INPUT_KEY, None)
             )
+
             func = partial(
                 getattr(runnable, method_name), 
                 copy.deepcopy(context_for_run),
-                **{config.OUTPUT_KEY: input_}
+                **{OUTPUT_KEY: input_}
             )
 
             yield runnable.id, func
@@ -130,9 +133,7 @@ class Group(Runnable):
         }
 
 
-    def _select_executor(
-        self
-    ) -> Executor:
+    def _select_executor(self) -> Executor:
 
         if self.executor_type is not None:
             if self.executor_type == 'process':
