@@ -33,3 +33,14 @@ class Runnable:
         **kwargs
     ) -> Any:
         raise NotImplementedError
+    
+
+    def graphviz(self, parent=None) -> Any:
+        raise NotImplementedError
+    
+
+    def visualize(self, file_path: str) -> None:
+        graph = self.graphviz()
+
+        graph.layout(prog='dot', args='-Nshape=box')
+        graph.draw(file_path)

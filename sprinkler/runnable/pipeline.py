@@ -144,3 +144,28 @@ class Pipeline(Runnable):
 
     def __call__(self, *args, **kwargs) -> Any:
         return self.run(*args, **kwargs)
+
+
+    def graphviz(self, parent=None) -> tuple:
+        from pygraphviz import AGraph
+
+        if parent is None:
+            graph = AGraph(directed=True, name=f'cluster_{self.id}', label=self.id, compound='true')
+        else:
+            graph = parent.add_subgraph(name=f'cluster_{self.id}', label=self.id)
+
+        prev_last = None
+
+        for runnable in self.members:
+            child = runnable.graphviz(graph)
+
+            if prev_last is not None:
+                graph.add_edge(
+                    prev_last.nodes()[-1],
+                    child.nodes()[-1],
+                    ltail=prev_last.name,
+                    lhead=child.name
+                )
+            prev_last = child
+        
+        return graph

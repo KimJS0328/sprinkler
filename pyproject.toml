@@ -8,10 +8,14 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.8"
 pydantic = "^2.4.2"
+pygraphviz = { version = "^1.11", optional = true }
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.4.2"
 pytest-asyncio = "^0.21.1"
+
+[tool.poetry.extras]
+viz = ["pygraphviz"]
 
 [build-system]
 requires = ["poetry-core"]
