@@ -9,4 +9,5 @@ RUN apt update \
     && apt install -y graphviz graphviz-dev \
     && pip install "poetry==1.6" \
     && poetry config virtualenvs.create false \
-    && poetry install --no-interaction --no-ansi --all-extras
+    && poetry lock --no-update \
+    && poetry install --no-interaction --no-ansi

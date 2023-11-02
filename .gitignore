@@ -14,6 +14,9 @@ Icon
 # Thumbnails
 ._*
 
+# VScode Settings
+.vscode/
+
 # Files that might appear in the root of a volume
 .DocumentRevisions-V100
 .fseventsd
@@ -233,5 +236,3 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/python,windows,macos
-
-.vscode/

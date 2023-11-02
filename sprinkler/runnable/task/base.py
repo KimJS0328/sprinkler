@@ -250,6 +250,7 @@ class Task(Runnable):
             keyword arguments of validated arguments
         """
         arguments = self._bind_input(context, args, kwargs)
+       
         input_model = create_model(
             f'TaskInput_{self.id}',
             **self._input_model_config,
@@ -341,6 +342,7 @@ class _Ann:
 
     def __getitem__(self, config):
         ann = _Ann(self.is_ctx)
+
         if isinstance(config, tuple):
             ann.type = config[0]
             ann.key = config[1] if len(config) > 1 else K()
