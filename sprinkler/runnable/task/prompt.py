@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import Any, List, Dict
+from typing import Any, Dict
 
 from sprinkler.runnable.task import Task
-from sprinkler.operation import construct_messages
+from sprinkler.operations import construct_messages
 
 
 class PromptTask(Task):

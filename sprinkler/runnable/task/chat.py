@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import os
-from typing import Any, List, Dict
-
-import openai
+from typing import Any, Dict
 
 from sprinkler.runnable.task import Task
-from sprinkler.operation import chat_completion
+from sprinkler.operations import chat_completion
 
 
 class ChatCompletionTask(Task):

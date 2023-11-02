@@ -11,14 +11,26 @@ from sprinkler.prompt_template import PromptTemplate
 
 
 def construct_messages(
-    messages: Ctx[List[Union[str, PromptTemplate]]],
+    messages: Ctx[List[Union[str, Dict, PromptTemplate]]],
     input_variables: Ann[Dict[str, Any]]
 ) -> List[Dict [str, str]]:
+    """Construct unformatted to formatted messages as input
+    
+    Attributes:
+        messages: unformatted typed messages
+        input_variables: mapping for variables in format 
+        string in promptTemplate
+    """
     for i, message in enumerate(messages):
         if isinstance(message, str):
             messages[i] = PromptTemplate(message).get_message()
+        
+        elif isinstance(message, dict):
+            continue
+
         elif issubclass(message.__class__, PromptTemplate):
             messages[i] = message.get_message(**input_variables)
+
         else:
             raise TypeError(f'Message must be string or instance of PromptTemplate')
         
@@ -43,6 +55,17 @@ def chat_completion(
     top_p: Ctx[float]= None,
     user: Ctx[str] = None 
 ) -> Union[Dict, List, str]:
+    """OpenAI ChatGPT chat completion request
+    
+    Attributes:
+        whole_output: if True, return whole output of response(dictonary),
+        it not, return only content (function call if functions exsists)
+        retry_count: the number of retries if error exists API request,
+        default is 1.
+
+        other attributes is from 
+        https://platform.openai.com/docs/api-reference/chat/create
+    """
 
     kwargs = {
         'frequency_penalty': frequency_penalty,
