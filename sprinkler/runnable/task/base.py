@@ -124,7 +124,7 @@ class Task(Runnable):
             return self
         else:
             return self.run(*args, **kwargs)
-    
+
 
     def _generator_for_run(
         self,
@@ -286,6 +286,19 @@ class Task(Runnable):
         
         except ValidationError as e:
             raise Exception(f'Task {self.id} output: {e}')
+
+
+    def make_graph(self, parent=None) -> Any:
+        from pygraphviz import AGraph
+
+        if parent is None:
+            graph = AGraph()
+        else:
+            graph = parent.add_subgraph()
+            
+        graph.add_node(self.id)
+
+        return graph
 
 
 class K:

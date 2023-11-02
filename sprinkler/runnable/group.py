@@ -171,3 +171,17 @@ class Group(Runnable):
 
     def __call__(self, *_unused, **inputs) -> Any:
         return self.run(*_unused, **inputs)
+
+
+    def make_graph(self, parent=None) -> Any:
+        from pygraphviz import AGraph
+
+        if parent is None:
+            graph = AGraph(directed=True, name=f'cluster_{self.id}', label=self.id, compound='true')
+        else:
+            graph = parent.add_subgraph(name=f'cluster_{self.id}', label=self.id)
+
+        for runnable in self.members:
+            runnable.make_graph(graph)
+        
+        return graph

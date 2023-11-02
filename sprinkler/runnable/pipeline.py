@@ -144,3 +144,33 @@ class Pipeline(Runnable):
 
     def __call__(self, *args, **kwargs) -> Any:
         return self.run(*args, **kwargs)
+
+
+    def make_graph(self, parent=None) -> Any:
+        from pygraphviz import AGraph
+
+        if parent is None:
+            graph = AGraph(directed=True, name=f'cluster_{self.id}', label=self.id, compound='true')
+        else:
+            graph = parent.add_subgraph(name=f'cluster_{self.id}', label=self.id)
+
+        prev_last = None
+
+        for runnable in self.members:
+            child = runnable.make_graph(graph)
+
+            if prev_last is not None:
+                attrs = {}
+                if prev_last.name is not None:
+                    attrs['ltail'] = prev_last.name
+                if child.name is not None:
+                    attrs['lhead'] = child.name
+
+                graph.add_edge(
+                    prev_last.nodes()[-1],
+                    child.nodes()[-1],
+                    **attrs
+                )
+            prev_last = child
+        
+        return graph
