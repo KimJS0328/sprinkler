@@ -288,13 +288,13 @@ class Task(Runnable):
             raise Exception(f'Task {self.id} output: {e}')
 
 
-    def graphviz(self, parent=None) -> Any:
+    def make_graph(self, parent=None) -> Any:
         from pygraphviz import AGraph
 
         if parent is None:
             graph = AGraph()
         else:
-            graph = parent
+            graph = parent.add_subgraph()
             
         graph.add_node(self.id)
 

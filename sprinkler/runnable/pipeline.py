@@ -146,7 +146,7 @@ class Pipeline(Runnable):
         return self.run(*args, **kwargs)
 
 
-    def graphviz(self, parent=None) -> tuple:
+    def make_graph(self, parent=None) -> Any:
         from pygraphviz import AGraph
 
         if parent is None:
@@ -157,14 +157,19 @@ class Pipeline(Runnable):
         prev_last = None
 
         for runnable in self.members:
-            child = runnable.graphviz(graph)
+            child = runnable.make_graph(graph)
 
             if prev_last is not None:
+                attrs = {}
+                if prev_last.name is not None:
+                    attrs['ltail'] = prev_last.name
+                if child.name is not None:
+                    attrs['lhead'] = child.name
+
                 graph.add_edge(
                     prev_last.nodes()[-1],
                     child.nodes()[-1],
-                    ltail=prev_last.name,
-                    lhead=child.name
+                    **attrs
                 )
             prev_last = child
         

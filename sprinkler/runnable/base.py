@@ -35,12 +35,12 @@ class Runnable:
         raise NotImplementedError
     
 
-    def graphviz(self, parent=None) -> Any:
+    def make_graph(self, parent=None) -> Any:
         raise NotImplementedError
     
 
     def visualize(self, file_path: str) -> None:
-        graph = self.graphviz()
+        graph = self.make_graph()
 
         graph.layout(prog='dot', args='-Nshape=box')
         graph.draw(file_path)
