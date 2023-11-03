@@ -12,7 +12,7 @@ import asyncio
 
 from sprinkler.runnable.base import Runnable
 from sprinkler.context.base import Context
-from sprinkler.constants import OUTPUT_KEY, DEFAULT_GROUP_INPUT_KEY
+from sprinkler.constants import OUTPUT_KEY
 
 
 class Group(Runnable):
@@ -30,9 +30,7 @@ class Group(Runnable):
         self,
         id_: str,
         *,
-        context: dict[str, Any] = None,
-        executor_type: str = None,
-        **executor_kwargs
+        context: dict[str, Any] = None
     ) -> None:
         """Initialize the Group with context.
         
@@ -46,12 +44,6 @@ class Group(Runnable):
 
         if context:
             self.context.add_global(context)
-
-        if executor_type is not None and executor_type not in {'thread', 'process'}:
-            raise ValueError(f'`executor_type` must be one of \'thread\' or \'process\'')
-
-        self.executor_type = executor_type
-        self.executor_kwargs = executor_kwargs
 
 
     def add(self, *args: Runnable) -> Group:
@@ -73,6 +65,7 @@ class Group(Runnable):
         self, 
         context_: dict[str, Any] | Context,
         inputs: dict[str, Any],
+        default: Any,
         method_name: str
     ) -> Generator[tuple[str, Any], None, None]:
         
@@ -84,14 +77,10 @@ class Group(Runnable):
             context_for_run.update(context_)
 
         if OUTPUT_KEY in inputs:
-            inputs[DEFAULT_GROUP_INPUT_KEY] = inputs[OUTPUT_KEY]
-            del inputs[OUTPUT_KEY]
+            default = inputs[OUTPUT_KEY]
 
         for runnable in self.members:
-            input_ = inputs.get(
-                runnable.id, 
-                inputs.get(DEFAULT_GROUP_INPUT_KEY, None)
-            )
+            input_ = inputs.get(runnable.id, default)
 
             func = partial(
                 getattr(runnable, method_name), 
@@ -104,73 +93,109 @@ class Group(Runnable):
 
     def run(
         self,
-        *_unused,
+        *,
+        __executor__: Executor | None = None,
+        __default__: Any = None,
         **inputs
     ) -> dict[str, Any]:
         """
         """
-        return self.run_with_context({}, **inputs)
+        return self.run_with_context(
+            {},
+            __executor__=__executor__,
+            __default__=__default__,
+            **inputs
+        )
 
 
     def run_with_context(
         self, 
-        context_: dict[str, Any] | Context,
-        *_unused,
+        context: dict[str, Any] | Context,
+        *,
+        __executor__: Executor | None = None,
+        __default__: Any = None,
         **inputs
     ) -> dict[str, Any]:
-        
+
+        gen = self._generator_for_run(
+            context, inputs, __default__, 'run_with_context'
+        )
+
+        needs_shutdown = False
+
+        if __executor__ is None:
+            __executor__ = ThreadPoolExecutor()
+            needs_shutdown = True
+
         results = {}
+        
+        for id_, func in gen:
+            results[id_] = __executor__.submit(
+                func,
+                __executor__=(
+                    __executor__ if not isinstance(__executor__, ProcessPoolExecutor)
+                    else None
+                )
+            )
 
-        with self._select_executor() as executor:
-            for id_, func in self._generator_for_run(
-                context_, inputs, 'run_with_context'
-            ):
-                results[id_] = executor.submit(func)
-
-        return {
+        results = {
             id_: result.result()
             for id_, result in results.items()
         }
+        
+        if needs_shutdown:
+            __executor__.shutdown()
+
+        return results
 
 
-    def _select_executor(self) -> Executor:
-
-        if self.executor_type is not None:
-            if self.executor_type == 'process':
-                return ProcessPoolExecutor(**self.executor_kwargs)
-            else:
-                return ThreadPoolExecutor(**self.executor_kwargs)
-        else:
-            return ThreadPoolExecutor(**self.executor_kwargs)
-
-
-    async def arun(self, *_unused, **inputs) -> Any:
-        return await self.arun_with_context({}, **inputs)
+    async def arun(
+        self,
+        *,
+        __default__: Any = None,
+        **inputs
+    ) -> Any:
+        return await self.arun_with_context(
+            {},
+            __default__=__default__,
+            **inputs
+        )
 
 
     async def arun_with_context(
         self, 
         context_: dict[str, Any] | Context,
-        *_unused,
+        *,
+        __default__: Any = None,
         **inputs
     ) -> Any:
 
-        coros = [
+        results = await asyncio.gather(*[
             func() for _, func in self._generator_for_run(
-                context_, inputs, 'arun_with_context'
+                context_, inputs, __default__, 'arun_with_context'
             )
-        ]
+        ])
         
         results = {
             self.members[i].id: result 
-            for i, result in enumerate(await asyncio.gather(*coros))
+            for i, result in enumerate(results)
         }
         
         return results
 
 
-    def __call__(self, *_unused, **inputs) -> Any:
-        return self.run(*_unused, **inputs)
+    def __call__(
+        self,
+        *,
+        __executor__: Executor | None = None,
+        __default__: Any = None,
+        **inputs
+    ) -> Any:
+        return self.run(
+            __executor__=__executor__,
+            __default__=__default__,
+            **inputs
+        )
 
 
     def make_graph(self, parent=None) -> Any:
