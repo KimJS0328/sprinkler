@@ -21,9 +21,7 @@ class Group(Runnable):
     members: list[Runnable]
     member_id_set: set[str]
     context: Context
-    executor_type: str
-    executor_kwargs: dict
-
+    
 
     def __init__(
         self,
