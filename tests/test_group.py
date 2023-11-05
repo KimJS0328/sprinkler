@@ -1,4 +1,4 @@
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 
 from sprinkler import Pipeline, Group, Task, Ctx
 
@@ -118,7 +118,7 @@ def repeat_string(string: str, repeat: int = 3) -> str:
 def repeat_array(array: list, repeat: int = 3) -> list:
     return array * repeat
 
-def test_group_with_threadpool():
+def test_group_with_processpool():
 
     pipeline1 = Pipeline('pipeline1')
     pipeline1.add(Task('repeat_string', repeat_string))
@@ -130,7 +130,7 @@ def test_group_with_threadpool():
         pipeline1, pipeline2
     )
 
-    with ThreadPoolExecutor(2) as executor:
+    with ProcessPoolExecutor(2) as executor:
         output = group.run(
             pipeline1=('sprinkler',),
             pipeline2=([1,2,3],),
