@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from concurrent.futures import Executor, ThreadPoolExecutor
+from concurrent.futures import Executor
 from typing import Any, Generator
 from functools import partial
 import copy
@@ -66,7 +66,7 @@ class Pipeline(Runnable):
 
     def _generator_for_run(
         self, 
-        context_: dict[str, Any], 
+        context: dict[str, Any], 
         args: tuple,
         kwargs: dict,
         method_name: str
@@ -75,13 +75,13 @@ class Pipeline(Runnable):
         context_for_run = copy.deepcopy(self.context)
 
         # add to global context in pipeline
-        if isinstance(context_, dict):
-            context_for_run.add_global(context_)
-        elif isinstance(context_, Context):
-            context_for_run.update(context_)
-        
-        if self.members:
-            runnable = self.members[0]
+        if isinstance(context, dict):
+            context_for_run.add_global(context)
+        elif isinstance(context, Context):
+            context_for_run.update(context)
+
+        # run tasks as chain with context
+        for runnable in self.members:
             func = getattr(runnable, method_name)
             output = yield partial(
                 func,
@@ -90,16 +90,8 @@ class Pipeline(Runnable):
                 **kwargs
             )
             context_for_run.add_history(output, runnable.id)
-
-        # run tasks as chain with context
-        for runnable in self.members[1:]:
-            func = getattr(runnable, method_name)
-            output = yield partial(
-                func,
-                context_for_run,
-                **{OUTPUT_KEY: output}
-            )
-            context_for_run.add_history(output, runnable.id)
+            args = ()
+            kwargs = {OUTPUT_KEY: output}
 
 
     def run(
@@ -131,12 +123,6 @@ class Pipeline(Runnable):
         **kwargs
     ) -> Any:
 
-        needs_shutdown = False
-
-        if __executor__ is None:
-            __executor__ = ThreadPoolExecutor()
-            needs_shutdown = True
-
         gen = self._generator_for_run(
             context, args, kwargs, 'run_with_context'
         )
@@ -147,9 +133,6 @@ class Pipeline(Runnable):
                 output = gen.send(output)(__executor__=__executor__)
             except StopIteration:
                 break
-
-        if needs_shutdown:
-            __executor__.shutdown()
 
         return output
 

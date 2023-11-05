@@ -4,7 +4,6 @@ from typing import Any, Generator
 from functools import partial
 from concurrent.futures import (
     ThreadPoolExecutor,
-    ProcessPoolExecutor,
     Executor
 )
 import copy
@@ -84,7 +83,7 @@ class Group(Runnable):
 
             func = partial(
                 getattr(runnable, method_name), 
-                copy.deepcopy(context_for_run),
+                context_for_run,
                 **{OUTPUT_KEY: input_}
             )
 
@@ -117,34 +116,31 @@ class Group(Runnable):
         **inputs
     ) -> dict[str, Any]:
 
-        gen = self._generator_for_run(
-            context, inputs, __default__, 'run_with_context'
-        )
-
         needs_shutdown = False
 
         if __executor__ is None:
             __executor__ = ThreadPoolExecutor()
             needs_shutdown = True
-
-        results = {}
         
-        for id_, func in gen:
-            results[id_] = __executor__.submit(
-                func,
-                __executor__=(
-                    __executor__ if not isinstance(__executor__, ProcessPoolExecutor)
-                    else None
-                )
+        if __executor__ == 'asyncio':
+            results = asyncio.run(self.arun_with_context(
+                context, __default__=__default__, **inputs
+            ))
+
+        else:
+            gen = self._generator_for_run(
+                context, inputs, __default__, 'run_with_context'
             )
+            results = {}
 
-        results = {
-            id_: result.result()
-            for id_, result in results.items()
-        }
-        
-        if needs_shutdown:
-            __executor__.shutdown()
+            for id_, func in gen:
+                future = __executor__.submit(func, __executor__='asyncio')
+                results[id_] = future
+            
+            if needs_shutdown:
+                __executor__.shutdown()
+            
+            results = {id_: future.result() for id_, future in results.items()}
 
         return results
 
