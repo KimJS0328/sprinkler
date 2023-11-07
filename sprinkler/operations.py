@@ -3,8 +3,6 @@
 from typing import Any, List, Dict, Union
 import json
 
-import openai
-
 from sprinkler import constants
 from sprinkler import Ann, Ctx
 from sprinkler.prompt_template import PromptTemplate
@@ -66,6 +64,15 @@ def chat_completion(
         other attributes is from 
         https://platform.openai.com/docs/api-reference/chat/create
     """
+
+    try:
+        import openai
+
+    except ImportError as e:
+        raise ValueError(
+                "Could not import openai python package. "
+                "Please install it with `pip install openai`.",
+            ) from e
 
     kwargs = {
         'frequency_penalty': frequency_penalty,
