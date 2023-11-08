@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from sprinkler.runnable.task import Task
-from sprinkler.operations import construct_messages
+from sprinkler.operations import construct_messages, aconstruct_messages
 
 
 class PromptTask(Task):
@@ -11,9 +11,16 @@ class PromptTask(Task):
     def __init__(
         self, 
         id_: str,
-        context_: Dict[str | Any] | None = None,
+        *,
+        context: Dict[str | Any] | None = None,
+        async_mode: bool = False
     ) -> None:
 
-        super().__init__(id_, 
-                        construct_messages,
-                        context=context_)
+        if not async_mode:
+            super().__init__(id_, 
+                            construct_messages,
+                            context=context)
+        else:
+            super().__init__(id_, 
+                            aconstruct_messages,
+                            context=context) 

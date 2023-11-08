@@ -1,8 +1,11 @@
 import pytest
+import time
 
 from sprinkler.prompt_template import PromptTemplate, SystemPromptTemplate, AssistantPromptTemplate
 from sprinkler.runnable.task.prompt import PromptTask
 from sprinkler.runnable.task.chat import ChatCompletionTask
+from sprinkler.runnable.task import Task
+from sprinkler.runnable import Group
 from sprinkler import Pipeline
 
 def test_chat_completion_task_base():
@@ -82,7 +85,7 @@ def test_pipeline_prompt_chat():
                       {'messages': messages})
     
     task_chat = ChatCompletionTask('chat',
-                                   {'temperature': 0.8,
+                                   context={'temperature': 0.8,
                                     'retry_count': 2})
     
     pipeline = Pipeline('pipe')
@@ -94,3 +97,25 @@ def test_pipeline_prompt_chat():
     print(output)
 
     assert 'Jungsik' in output
+
+
+@pytest.mark.asyncio
+async def test_group_coroutine():
+    task_chat = ChatCompletionTask('async_test',
+                                   context={'whole_output': True},
+                                   async_mode=True)
+    chat_input = [{'role': 'user', 'content': 'hello'}] 
+    
+    async def echo(message: str):
+        print(message)
+        return time.time()
+    
+    task_echo = Task('async_echo',
+                      echo)
+
+    group = Group('async_group').add(task_chat, task_echo)
+    
+    output = await group.arun(async_test=chat_input, async_echo='hello')
+
+    # echo task is executed prior to chat completion task
+    assert output['async_test']['created'] > output['async_echo']

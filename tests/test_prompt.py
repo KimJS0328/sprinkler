@@ -60,7 +60,7 @@ def test_prompt_task_base():
     messages = ['hello gpt!', PromptTemplate('Jungsik is {identity}')]
 
     task = PromptTask('prompt#1',
-                      {'messages': messages})
+                      context={'messages': messages})
     
     output = task({'identity': 'genius'})
 

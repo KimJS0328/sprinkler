@@ -90,5 +90,4 @@ class Context:
             dictionary representation of all contexts
         """
         return (f'Global Context: {self.global_context}\n'
-                + f'History Context: {self.history_context}\n'
-                + f'Output: {self.output}\n')
+                + f'History Context: {self.history_context}\n')
