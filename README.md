@@ -18,7 +18,7 @@ pip install sprinkler
 
 ## 🦷 Requirements
 
-Please install below packages for Sprinkler. 
+Please install below packages for Sprinkler. We recommed using `pip` command as sprinkler.
 
 * python 3.8+
 * pydantic 2.4.2+
@@ -82,7 +82,7 @@ def group_with_processpool():
 With GPT Chatcompletion, you can construct your pipeline like below.
 
 ```python
-def test_pipeline_prompt_chat2():
+def pipeline_prompt_chat():
     messages = [SystemPromptTemplate('You are a fan of baseball team named {team}'),
                 PromptTemplate('Have you bought {team} merchandise?')]
 
