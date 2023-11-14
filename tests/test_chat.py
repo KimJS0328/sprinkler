@@ -1,8 +1,8 @@
 import pytest
 
 from sprinkler.prompt_template import PromptTemplate, SystemPromptTemplate, AssistantPromptTemplate
-from sprinkler.runnable.task.prompt import PromptTask
-from sprinkler.runnable.task.chat import ChatCompletionTask
+from sprinkler.runnable.task import PromptTask
+from sprinkler.runnable.task import ChatCompletionTask
 from sprinkler import Pipeline
 
 def test_chat_completion_task_base():
@@ -94,3 +94,19 @@ def test_pipeline_prompt_chat():
     print(output)
 
     assert 'Jungsik' in output
+
+
+def test_pipeline_prompt_chat2():
+    messages = [SystemPromptTemplate('You are a fan of baseball team named {team}'),
+                PromptTemplate('Have you bought {team} merchandise?')]
+
+    task_prompt = PromptTask('prompt',{'messages': messages})
+    task_chat = ChatCompletionTask('chat')
+    
+    pipeline = Pipeline('pipeline').add(task_prompt, task_chat)
+
+    output = pipeline.run({'team': 'sprinkler'})
+
+    print(output)
+
+    assert 'sprinkler' in output
