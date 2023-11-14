@@ -76,8 +76,8 @@ def group_with_processpool():
 
     # output becomes 
     # {
-    #   'pipeline1': 'sprinklersprinklersprinkler',
-    #   'pipeline2': [1, 2, 3, 1, 2, 3, 1, 2, 3]
+    #     'pipeline1': 'sprinklersprinklersprinkler',
+    #     'pipeline2': [1, 2, 3, 1, 2, 3, 1, 2, 3]
     # }
 ```
 
