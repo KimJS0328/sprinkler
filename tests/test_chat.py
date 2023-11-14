@@ -1,8 +1,8 @@
 import pytest
 
 from sprinkler.prompt_template import PromptTemplate, SystemPromptTemplate, AssistantPromptTemplate
-from sprinkler.runnable.task.prompt import PromptTask
-from sprinkler.runnable.task.chat import ChatCompletionTask
+from sprinkler.runnable.task import PromptTask
+from sprinkler.runnable.task import ChatCompletionTask
 from sprinkler import Pipeline
 
 def test_chat_completion_task_base():

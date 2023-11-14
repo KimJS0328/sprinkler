@@ -50,6 +50,10 @@ You  can make your own pipeline system with these components. For more informati
 The one basic examples of just repeating something using `Task`, `Pipeline`, `Group` is like below.
 
 ```python
+from concurrent.futures import ProcessPoolExecutor
+
+from sprinkler import Pipeline, Group
+
 def repeat_string(string: str, repeat: int = 3) -> str:
     return string * repeat
 def repeat_array(array: list, repeat: int = 3) -> list:
@@ -84,6 +88,11 @@ def group_with_processpool():
 With GPT Chatcompletion, you can construct your pipeline like below.
 
 ```python
+from sprinkler.prompt_template import PromptTemplate, SystemPromptTemplate
+
+from sprinkler.runnable.task import PromptTask
+from sprinkler.runnable.task import ChatCompletionTask
+
 def pipeline_prompt_chat():
     messages = [SystemPromptTemplate('You are a fan of baseball team named {team}'),
                 PromptTemplate('Have you bought {team} merchandise?')]
