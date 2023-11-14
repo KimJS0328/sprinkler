@@ -63,14 +63,16 @@ def group_with_processpool():
     pipeline2 = Pipeline('pipeline2')
     pipeline2.add(Task('repeat_array', repeat_array))
 
-    group = Group('group', executor_type='process', max_workers=2).add(
+    group = Group('group').add(
         pipeline1, pipeline2
     )
 
-    output = group.run(
-        pipeline1=('sprinkler',),
-        pipeline2=([1,2,3],)
-    )
+    with ProcessPoolExecutor(2) as executor:
+        output = group.run(
+            pipeline1=('sprinkler',),
+            pipeline2=([1,2,3],),
+            __executor__=executor
+        )
 
     # output becomes 
     # {
