@@ -47,42 +47,43 @@ You  can make your own pipeline system with these components. For more informati
 
 ## 👀 Examples
 
-The one basic examples of just repeating something using `Task`, `Pipeline`, `Group` is like below.
+The one basic examples of just repeating something using `Task`, `Pipeline`, `Group`, `Context` is like below.
 
 ```python
 from concurrent.futures import ProcessPoolExecutor
 
-from sprinkler import Pipeline, Group
+from sprinkler import Pipeline, Group, Task, Ctx
 
-def repeat_string(string: str, repeat: int = 3) -> str:
-    return string * repeat
-def repeat_array(array: list, repeat: int = 3) -> list:
-    return array * repeat
 
-def group_with_processpool():
-
-    pipeline1 = Pipeline('pipeline1')
-    pipeline1.add(Task('repeat_string', repeat_string))
-
-    pipeline2 = Pipeline('pipeline2')
-    pipeline2.add(Task('repeat_array', repeat_array))
-
-    group = Group('group').add(
-        pipeline1, pipeline2
+@Task('camel')
+def make_camel(text: str) -> str:
+    return ''.join(
+        word.lower() if i == 0 else word.capitalize()
+        for i, word in enumerate(text.split())
     )
 
-    with ProcessPoolExecutor(2) as executor:
-        output = group.run(
-            pipeline1=('sprinkler',),
-            pipeline2=([1,2,3],),
-            __executor__=executor
-        )
+def repeat(text: str, times: Ctx[int]) -> str:
+    return ''.join(ch * times for ch in text)
 
-    # output becomes 
-    # {
-    #     'pipeline1': 'sprinklersprinklersprinkler',
-    #     'pipeline2': [1, 2, 3, 1, 2, 3, 1, 2, 3]
-    # }
+def tile(text: str, times: Ctx[int]) -> str:
+    return text * times
+
+pipeline = Pipeline('pipeline', context={'times': 2}).add(
+    make_camel,
+    Group('group').add(
+        Task('repeat', repeat),
+        Task('tile', tile)
+    )
+)
+
+with ProcessPoolExecutor() as executor:
+    pipeline.run('python sprinkler', __executor__=executor)
+
+# output becomes 
+# {
+#   'repeat': 'ppyytthhoonnSSpprriinnkklleerr',
+#   'tile': 'pythonSprinklerpythonSprinkler'
+# }
 ```
 
 With GPT Chatcompletion, you can construct your pipeline like below.
@@ -93,19 +94,19 @@ from sprinkler.prompt_template import PromptTemplate, SystemPromptTemplate
 from sprinkler.runnable.task import PromptTask
 from sprinkler.runnable.task import ChatCompletionTask
 
-def pipeline_prompt_chat():
-    messages = [SystemPromptTemplate('You are a fan of baseball team named {team}'),
-                PromptTemplate('Have you bought {team} merchandise?')]
 
-    task_prompt = PromptTask('prompt',{'messages': messages})
-    task_chat = ChatCompletionTask('chat')
-    
-    pipeline = Pipeline('pipeline').add(task_prompt, task_chat)
+messages = [SystemPromptTemplate('You are a fan of baseball team named {team}'),
+            PromptTemplate('Have you bought {team} merchandise?')]
 
-    output = pipeline.run({'team': 'sprinkler'})
+task_prompt = PromptTask('prompt',{'messages': messages})
+task_chat = ChatCompletionTask('chat')
 
-    # output becomes like (example)
-    # Yes, as a fan of the Sprinkler baseball team, I have bought various sprinkler merchandise. This includes hats, jerseys, t-shirts, keychains, and even a mini sprinkler for my garden. Showcasing my support for the team and representing them through merchandise is a fun way to connect with fellow fans and show my love for the Sprinkler baseball team
+pipeline = Pipeline('pipeline').add(task_prompt, task_chat)
+
+output = pipeline.run({'team': 'sprinkler'})
+
+# output becomes like (example)
+# Yes, as a fan of the Sprinkler baseball team, I have bought various sprinkler merchandise. This includes hats, jerseys, t-shirts, keychains, and even a mini sprinkler for my garden. Showcasing my support for the team and representing them through merchandise is a fun way to connect with fellow fans and show my love for the Sprinkler baseball team
 ```
 
 ## 🧑🏻‍💻 Contributing

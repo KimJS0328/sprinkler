@@ -6,7 +6,7 @@ import json
 import openai
 
 from sprinkler import constants
-from sprinkler import Ann, Ctx
+from sprinkler.runnable.task.base import Ann, Ctx
 from sprinkler.prompt_template import PromptTemplate
 
 
