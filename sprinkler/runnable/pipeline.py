@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from concurrent.futures import Executor
 from typing import Any, Generator
+from functools import partial
 import copy
 
 from sprinkler.runnable.base import Runnable
@@ -64,7 +66,7 @@ class Pipeline(Runnable):
 
     def _generator_for_run(
         self, 
-        context_: dict[str, Any], 
+        context: dict[str, Any], 
         args: tuple,
         kwargs: dict,
         method_name: str
@@ -73,27 +75,31 @@ class Pipeline(Runnable):
         context_for_run = copy.deepcopy(self.context)
 
         # add to global context in pipeline
-        if isinstance(context_, dict):
-            context_for_run.add_global(context_)
-        elif isinstance(context_, Context):
-            context_for_run.update(context_)
-        
-        if self.members:
-            runnable = self.members[0]
-            func = getattr(runnable, method_name)
-            output = yield func(context_for_run, *args, **kwargs)
-            context_for_run.add_history(output, runnable.id)
+        if isinstance(context, dict):
+            context_for_run.add_global(context)
+        elif isinstance(context, Context):
+            context_for_run.update(context)
 
         # run tasks as chain with context
-        for runnable in self.members[1:]:
+        for runnable in self.members:
             func = getattr(runnable, method_name)
-            output = yield func(
-                context_for_run, **{OUTPUT_KEY: output}
+            output = yield partial(
+                func,
+                context_for_run,
+                *args,
+                **kwargs
             )
             context_for_run.add_history(output, runnable.id)
+            args = ()
+            kwargs = {OUTPUT_KEY: output}
 
 
-    def run(self, *args, **kwargs) -> Any:
+    def run(
+        self,
+        *args,
+        __executor__: Executor | None = None,
+        **kwargs
+    ) -> Any:
         """run the pipeline flows
 
         excute the tasks in the pipeline sequentially
@@ -101,49 +107,80 @@ class Pipeline(Runnable):
         Returns:
             final output of pipeline
         """
-        return self.run_with_context({}, *args, **kwargs)
+        return self.run_with_context(
+            {},
+            *args,
+            __executor__=__executor__,
+            **kwargs
+        )
     
 
-    def run_with_context(self, context_: dict[str, Any], *args, **kwargs) -> Any:
+    def run_with_context(
+        self,
+        context: dict[str, Any],
+        *args,
+        __executor__: Executor | None = None,
+        **kwargs
+    ) -> Any:
+
         gen = self._generator_for_run(
-            context_, args, kwargs, 'run_with_context')
+            context, args, kwargs, 'run_with_context'
+        )
         output = None
         
         while True:
             try:
-                output = gen.send(output)
+                output = gen.send(output)(__executor__=__executor__)
             except StopIteration:
                 break
 
         return output
 
 
-    async def arun(self, *args, **kwargs) -> Any:
-        return await self.arun_with_context({}, *args, **kwargs)
+    async def arun(
+        self,
+        *args,
+        **kwargs
+    ) -> Any:
+        return await self.arun_with_context(
+            {},
+            *args,
+            **kwargs
+        )
 
 
     async def arun_with_context(
         self,
-        context_: dict[str, Any] | Context,
+        context: dict[str, Any] | Context,
         *args,
         **kwargs
     ) -> Any:
         
         gen = self._generator_for_run(
-            context_, args, kwargs, 'arun_with_context')
+            context, args, kwargs, 'arun_with_context'
+        )
         output = None
         
         while True:
             try:
-                output = await gen.send(output)
+                output = await gen.send(output)()
             except StopIteration:
                 break
 
         return output
 
 
-    def __call__(self, *args, **kwargs) -> Any:
-        return self.run(*args, **kwargs)
+    def __call__(
+        self,
+        *args,
+        __executor__: Executor | None = None,
+        **kwargs
+    ) -> Any:
+        return self.run(
+            *args,
+            __executor__=__executor__,
+            **kwargs
+        )
 
 
     def make_graph(self, parent=None) -> Any:

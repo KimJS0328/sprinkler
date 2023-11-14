@@ -233,12 +233,12 @@ class Task(Runnable):
                     ))
 
         else:
-            params = chain.from_iterable(self._param_with_key.values())
+            params = list(chain.from_iterable(self._param_with_key.values()))
 
             for param, arg in zip(params, args):
                 input_[param] = arg
                 
-            input_.update(kwargs)
+            input_.update({k: v for k, v in kwargs.items() if k in params})
 
         return input_
 
