@@ -94,3 +94,19 @@ def test_pipeline_prompt_chat():
     print(output)
 
     assert 'Jungsik' in output
+
+
+def test_pipeline_prompt_chat2():
+    messages = [SystemPromptTemplate('You are a fan of baseball team named {team}'),
+                PromptTemplate('Have you bought {team} merchandise?')]
+
+    task_prompt = PromptTask('prompt',{'messages': messages})
+    task_chat = ChatCompletionTask('chat')
+    
+    pipeline = Pipeline('pipeline').add(task_prompt, task_chat)
+
+    output = pipeline.run({'team': 'sprinkler'})
+
+    print(output)
+
+    assert 'sprinkler' in output
